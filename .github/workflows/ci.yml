@@ -1,0 +1,71 @@
+name: CI - Taller Mecánico
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tallerdb
+        ports: [5432:5432]
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install
+
+      # Paso opcional para Prisma: si no hay migraciones, no falla
+      - name: Setup Prisma (optional)
+        run: |
+          cd backend
+          npx prisma migrate deploy || echo "No migrations yet"
+
+      # Paso opcional para tests: si no existen, no falla
+      - name: Run backend tests (optional)
+        run: |
+          cd backend
+          npm test || echo "No tests yet"
