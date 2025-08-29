@@ -1,6 +1,7 @@
 // src/components/Footer.jsx
 import React from 'react';
 import { Phone, Lock, Globe } from 'lucide-react';
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -13,7 +14,7 @@ const Footer = () => {
         hover:scale-105 hover:text-purple-300">
         Contáctame
         </h2>
- 
+
         {/* Contenedor principal */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
