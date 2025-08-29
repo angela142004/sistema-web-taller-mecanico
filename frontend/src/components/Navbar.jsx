@@ -15,13 +15,15 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           
           {/* Logo y Nombre */}
-          <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-2 rounded-lg shadow-md">
-              <Settings className="h-6 w-6 text-white" />
+          <div className="flex items-center space-x-3 group">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-2 rounded-xl shadow-lg transform transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
+              <Settings className="h-6 w-6 text-white animate-spin-slow" />
             </div>
-            <div className="text-white">
-              <h1 className="font-bold text-lg tracking-wide">MULTISERVICIOS</h1>
-              <p className="text-xs text-slate-300 -mt-1">
+            <div className="text-white select-none">
+              <h1 className="font-bold text-lg tracking-wide leading-tight transition-transform duration-500 group-hover:translate-x-1 group-hover:scale-105">
+                MULTISERVICIOS
+              </h1>
+              <p className="text-xs text-slate-400 -mt-1 transition-colors duration-500 group-hover:text-purple-400">
                 AUTOMOTRIZ KLEBERTH
               </p>
             </div>
@@ -30,34 +32,21 @@ const Navbar = () => {
           {/* Navigation Links - Desktop */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">
-              <a
-                href="#inicio"
-                className="text-white hover:text-purple-400 transition-colors duration-200 font-medium relative group"
-              >
-                Inicio
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-400 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="#nosotros"
-                className="text-slate-300 hover:text-white transition-colors duration-200 font-medium relative group"
-              >
-                Nosotros
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-400 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="#servicios"
-                className="text-slate-300 hover:text-white transition-colors duration-200 font-medium relative group"
-              >
-                Servicios
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-400 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="#procesos"
-                className="text-slate-300 hover:text-white transition-colors duration-200 font-medium relative group"
-              >
-                Procesos
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-400 transition-all duration-300 group-hover:w-full"></span>
-              </a>
+              {[
+                { href: "#inicio", label: "Inicio" },
+                { href: "#nosotros", label: "Nosotros" },
+                { href: "#servicios", label: "Servicios" },
+                { href: "#procesos", label: "Procesos" },
+              ].map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="text-slate-300 hover:text-purple-400 transition-all duration-300 font-medium relative group"
+                >
+                  {link.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-500 transition-all duration-500 group-hover:w-full"></span>
+                </a>
+              ))}
             </div>
           </div>
 
@@ -65,7 +54,7 @@ const Navbar = () => {
           <div className="md:hidden">
             <button
               onClick={toggleMenu}
-              className="text-slate-300 hover:text-white p-2 rounded-md transition-colors"
+              className="text-slate-300 hover:text-white p-2 rounded-md transition-transform duration-200 hover:scale-110 active:scale-95"
             >
               {isMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -78,35 +67,25 @@ const Navbar = () => {
 
         {/* Mobile menu */}
         <div
-          className={`md:hidden transition-all duration-300 ease-in-out overflow-hidden ${
-            isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+          className={`md:hidden transition-all duration-500 ease-in-out overflow-hidden ${
+            isMenuOpen ? "max-h-72 opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="px-2 pt-2 pb-3 space-y-1 bg-slate-800/70 rounded-lg mt-2 backdrop-blur-sm shadow-md">
-            <a
-              href="#inicio"
-              className="text-white hover:bg-slate-700 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-            >
-              Inicio
-            </a>
-            <a
-              href="#nosotros"
-              className="text-slate-300 hover:text-white hover:bg-slate-700 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-            >
-              Nosotros
-            </a>
-            <a
-              href="#servicios"
-              className="text-slate-300 hover:text-white hover:bg-slate-700 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-            >
-              Servicios
-            </a>
-            <a
-              href="#procesos"
-              className="text-slate-300 hover:text-white hover:bg-slate-700 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-            >
-              Procesos
-            </a>
+          <div className="px-3 pt-3 pb-4 space-y-2 bg-slate-800/90 rounded-lg mt-2 backdrop-blur-sm shadow-lg">
+            {[
+              { href: "#inicio", label: "Inicio" },
+              { href: "#nosotros", label: "Nosotros" },
+              { href: "#servicios", label: "Servicios" },
+              { href: "#procesos", label: "Procesos" },
+            ].map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-purple-400 hover:bg-slate-700/70 transition-colors duration-300"
+              >
+                {link.label}
+              </a>
+            ))}
           </div>
         </div>
       </div>
