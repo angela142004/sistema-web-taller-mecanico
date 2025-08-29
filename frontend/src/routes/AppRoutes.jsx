@@ -3,6 +3,7 @@ import Home from "../pages/Home";
 import Register from "../pages/Register";
 import Nosotros from "../pages/Nosotros";
 import Servicios from "../pages/Servicios";
+import Procesos from "../pages/Procesos";
 
 const AppRoutes = () => (
   <Routes>
@@ -10,6 +11,7 @@ const AppRoutes = () => (
     <Route path="/register" element={<Register />} />
     <Route path="/nosotros" element={<Nosotros />} />
     <Route path="/servicios" element={<Servicios />} />
+    <Route path="/procesos" element={<Procesos />} />
   </Routes>
 );
 
