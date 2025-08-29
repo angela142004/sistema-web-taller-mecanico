@@ -4,7 +4,7 @@ import Register from "../pages/Register";
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/home" element={<Home />} />
+    <Route path="/" element={<Home />} />
     <Route path="/register" element={<Register />} />
   </Routes>
 );
