@@ -1,5 +1,7 @@
 // src/pages/Home.jsx
 import React from 'react';
+import { Link } from "react-router-dom"; // <--- Importa Link
+
 
 const Home = () => {
   return (
@@ -66,9 +68,11 @@ const Home = () => {
           {/* Enlaces */}
           <div className="flex justify-center text-xs mt-4 md:mt-5">
             <span className="text-gray-300">¿No tienes una cuenta?</span>
-            <a href="#" className="text-purple-400 ml-1 hover:underline">
-              Registrar ahora
-            </a>
+            
+            <Link to="/register" className="text-purple-400 ml-1 hover:underline">
+            Registrar ahora
+            </Link>
+
           </div>
         </div>
       </div>
