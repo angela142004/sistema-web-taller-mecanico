@@ -8,10 +8,12 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-6">
         
         {/* Título */}
-        <h2 className="text-2xl font-bold mb-8 text-center md:text-left text-purple-400">
-          Contáctame
+        <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center md:text-left 
+        text-white tracking-tight leading-snug transition-transform duration-500 
+        hover:scale-105 hover:text-purple-300">
+        Contáctame
         </h2>
-        
+ 
         {/* Contenedor principal */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
