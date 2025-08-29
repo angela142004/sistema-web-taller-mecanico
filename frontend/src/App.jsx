@@ -11,20 +11,9 @@ const App = () => {
       {/* Navbar */}
       <Navbar />
 
-      {/* Contenido principal */}
-      <main className="flex-grow relative flex">
-        {/* Fondo con imagen */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center" 
-          style={{ backgroundImage: `url('/images/FondoHome.jpg')` }}
-        >
-          <div className="absolute inset-0 bg-gray-900 bg-opacity-70 backdrop-blur-md"></div>
-        </div>
-
-        {/* Contenido centrado EXACTAMENTE */}
-        <div className="relative z-10 flex flex-1 items-center justify-center">
-          <AppRoutes />
-        </div>
+      {/* Contenido principal centrado */}
+      <main className="flex-grow flex items-center justify-center">
+        <AppRoutes />
       </main>
 
       {/* Footer */}
