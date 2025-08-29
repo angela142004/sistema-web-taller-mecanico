@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const Register = () => {
 return (
-    <div className="w-full min-h-screen flex flex-col justify-start items-center p-4 md:p-8 relative overflow-hidden">
+    <div className="w-full min-h-screen flex flex-col justify-center items-center p-4 md:p-8 relative overflow-hidden">
     
       {/* Fondo con imagen y overlay */}
     <div 
