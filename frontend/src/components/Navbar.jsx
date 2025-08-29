@@ -1,6 +1,8 @@
 // src/components/Navbar.jsx
 import React, { useState } from "react";
 import { Menu, X, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
+
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,22 +35,23 @@ const Navbar = () => {
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">
               {[
-                { href: "#inicio", label: "Inicio" },
-                { href: "#nosotros", label: "Nosotros" },
-                { href: "#servicios", label: "Servicios" },
-                { href: "#procesos", label: "Procesos" },
+                { to: "/", label: "Inicio" },          // Home
+                { to: "/nosotros", label: "Nosotros" }, // Crear página más adelante
+                { to: "/servicios", label: "Servicios" }, // Crear página más adelante
+                { to: "/procesos", label: "Procesos" },   // Crear página más adelante
               ].map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
+                <Link
+                  key={link.label}
+                  to={link.to}
                   className="text-slate-300 hover:text-purple-400 transition-all duration-300 font-medium relative group"
                 >
                   {link.label}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-500 transition-all duration-500 group-hover:w-full"></span>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
+
 
           {/* Botón menú - Mobile */}
           <div className="md:hidden">
