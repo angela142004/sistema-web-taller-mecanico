@@ -1,32 +1,31 @@
 // src/pages/Home.jsx
-import React from 'react';
-import { Link } from "react-router-dom"; // <--- Importa Link
-
+import React from "react";
+import { Link } from "react-router-dom";
 
 const Home = () => {
   return (
-    <div className="w-full h-screen flex flex-col justify-center items-center p-4 md:p-8 relative overflow-hidden">
+    <div className="w-full min-h-screen flex flex-col justify-start items-center p-4 md:p-8 relative overflow-hidden">
       
       {/* Fondo con imagen y overlay */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center" 
         style={{ backgroundImage: "url('/images/FondoHome.jpg')" }}
       >
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm mix-blend-multiply"></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
       </div>
 
       {/* Contenido principal */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-center h-full animate-fadeIn">
+      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 justify-items-center md:items-center animate-fadeIn">
         
         {/* Hero / Mensaje de bienvenida */}
-        <div className="flex flex-col justify-center items-center md:items-start text-gray-100 text-center md:text-left p-4">
+        <div className="flex flex-col justify-center items-center md:items-start text-gray-100 text-center md:text-left p-4 animate-fadeInUp">
           <p className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight drop-shadow-lg">
             “Confianza,<br />rapidez y calidad<br />en el cuidado de<br />tu vehículo.”
           </p>
         </div>
 
         {/* Formulario de login */}
-        <div className="bg-gray-800/70 backdrop-blur-md p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-sm mx-auto">
+        <div className="bg-gray-800/70 backdrop-blur-md p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-sm animate-fadeInUp delay-150">
           <h2 className="text-white text-3xl md:text-4xl font-bold mb-2 text-center">
             ¡Bienvenido de nuevo!
           </h2>
@@ -68,11 +67,9 @@ const Home = () => {
           {/* Enlaces */}
           <div className="flex justify-center text-xs mt-4 md:mt-5">
             <span className="text-gray-300">¿No tienes una cuenta?</span>
-            
             <Link to="/register" className="text-purple-400 ml-1 hover:underline">
-            Registrar ahora
+              Registrar ahora
             </Link>
-
           </div>
         </div>
       </div>
