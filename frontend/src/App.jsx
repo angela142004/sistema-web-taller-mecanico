@@ -1,4 +1,5 @@
 // src/App.jsx
+
 import React from 'react';
 import Navbar from './components/Navbar';
 import AppRoutes from './routes/AppRoutes';
@@ -11,8 +12,8 @@ const App = () => {
       {/* Navbar */}
       <Navbar />
 
-      {/* Contenido principal centrado */}
-      <main className="flex-grow flex items-center justify-center">
+      {/* Contenido principal que crece y ocupa el espacio disponible */}
+      <main className="flex-grow">
         <AppRoutes />
       </main>
 
@@ -23,4 +24,3 @@ const App = () => {
 };
 
 export default App;
-
