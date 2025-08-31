@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -12,4 +9,207 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ===================== ENUMS =====================
+enum Rol {
+  cliente
+  mecanico
+  admin
+}
+
+enum EstadoReserva {
+  pendiente
+  aprobado
+  cotizado
+  facturado
+  cancelado
+}
+
+enum EstadoAsignacion {
+  pendiente
+  en_proceso
+  finalizado
+  cancelado
+}
+
+enum EstadoCotizacion {
+  cotizado
+  aprobado
+  facturado
+}
+
+// ===================== MODELOS =====================
+
+model Usuarios {
+  id_usuario   Int       @id @default(autoincrement())
+  nombre       String    @db.VarChar(100)
+  correo       String    @unique @db.VarChar(100)
+  contraseña   String    @db.VarChar(255)
+  rol          Rol
+
+  cliente      Clientes?
+  mecanico     Mecanicos?
+
+  @@map("Usuarios")
+}
+
+model Clientes {
+  id_cliente Int    @id @default(autoincrement())
+  id_usuario Int    @unique
+  telefono   String @db.VarChar(20)
+  direccion  String @db.VarChar(150)
+
+  usuario    Usuarios @relation(fields: [id_usuario], references: [id_usuario])
+  vehiculos  Vehiculos[]
+  reservas   Reservas[]
+
+  @@map("Clientes")
+}
+
+model Mecanicos {
+  id_mecanico   Int    @id @default(autoincrement())
+  id_usuario    Int    @unique
+  telefono      String @db.VarChar(20)
+  especialidad  String @db.VarChar(100)
+  fecha_ingreso DateTime @db.Date
+
+  usuario      Usuarios   @relation(fields: [id_usuario], references: [id_usuario])
+  asignaciones Asignaciones[]
+  historial    Historial_Servicios[]
+
+  @@map("Mecanicos")
+}
+
+model Vehiculos {
+  id_vehiculo Int    @id @default(autoincrement())
+  id_cliente  Int
+  id_modelo   Int
+  anio        Int
+  placa       String @unique @db.VarChar(15)
+
+  cliente   Clientes @relation(fields: [id_cliente], references: [id_cliente])
+  modelo    Modelos  @relation(fields: [id_modelo], references: [id_modelo])
+  reservas  Reservas[]
+
+  @@map("Vehiculos")
+}
+
+model Modelos {
+  id_modelo Int    @id @default(autoincrement())
+  id_marca  Int
+  nombre    String @db.VarChar(50)
+
+  marca     Marcas      @relation(fields: [id_marca], references: [id_marca])
+  vehiculos Vehiculos[]
+  repuestos Repuestos[]
+
+  @@map("Modelos")
+}
+
+model Marcas {
+  id_marca Int    @id @default(autoincrement())
+  nombre   String @unique @db.VarChar(50)
+
+  modelos   Modelos[]
+  repuestos Repuestos[]
+
+  @@map("Marcas")
+}
+
+model Repuestos {
+  id_repuesto   Int     @id @default(autoincrement())
+  descripcion   String  @db.VarChar(150)
+  id_marca      Int
+  id_modelo     Int
+  anio          Int
+  precio_compra Decimal @db.Decimal(10,2)
+  precio_venta  Decimal @db.Decimal(10,2)
+  stock         Int
+
+  marca  Marcas  @relation(fields: [id_marca], references: [id_marca])
+  modelo Modelos @relation(fields: [id_modelo], references: [id_modelo])
+
+  @@map("Repuestos")
+}
+
+model Servicios {
+  id_servicio Int    @id @default(autoincrement())
+  nombre      String @db.VarChar(100)
+  descripcion String?
+
+  reservas Reservas[]
+
+  @@map("Servicios")
+}
+
+model Reservas {
+  id_reserva      Int            @id @default(autoincrement())
+  id_cliente      Int
+  id_vehiculo     Int
+  id_servicio     Int
+  fecha_solicitud DateTime @db.Date
+  fecha_atencion  DateTime @db.Date
+  estado          EstadoReserva
+
+  cliente     Clientes @relation(fields: [id_cliente], references: [id_cliente])
+  vehiculo    Vehiculos @relation(fields: [id_vehiculo], references: [id_vehiculo])
+  servicio    Servicios @relation(fields: [id_servicio], references: [id_servicio])
+  asignacion  Asignaciones[]
+  historial   Historial_Servicios[]
+  cotizacion  Cotizaciones?
+
+  @@map("Reservas")
+}
+
+model Asignaciones {
+  id_asignacion    Int              @id @default(autoincrement())
+  id_reserva       Int
+  id_mecanico      Int
+  fecha_asignacion DateTime @db.Date
+  estado           EstadoAsignacion
+  observaciones    String?
+
+  reserva  Reservas  @relation(fields: [id_reserva], references: [id_reserva])
+  mecanico Mecanicos @relation(fields: [id_mecanico], references: [id_mecanico])
+
+  @@map("Asignaciones")
+}
+
+model Historial_Servicios {
+  id_historial Int    @id @default(autoincrement())
+  id_reserva   Int
+  id_mecanico  Int
+  descripcion  String?
+  fecha        DateTime @db.Date
+  costo        Decimal  @db.Decimal(10,2)
+
+  reserva  Reservas  @relation(fields: [id_reserva], references: [id_reserva])
+  mecanico Mecanicos @relation(fields: [id_mecanico], references: [id_mecanico])
+
+  @@map("Historial_Servicios")
+}
+
+model Cotizaciones {
+  id_cotizacion Int              @id @default(autoincrement())
+  id_reserva    Int   @unique
+  fecha         DateTime @db.Date
+  total         Decimal @db.Decimal(10,2)
+  estado        EstadoCotizacion
+
+  reserva Reservas @relation(fields: [id_reserva], references: [id_reserva])
+  factura Facturas?
+
+  @@map("Cotizaciones")
+}
+
+model Facturas {
+  id_factura    Int     @id @default(autoincrement())
+  id_cotizacion Int     @unique
+  fecha         DateTime @db.Date
+  total         Decimal  @db.Decimal(10,2)
+
+  cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion])
+
+  @@map("Facturas")
 }
