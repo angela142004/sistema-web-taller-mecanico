@@ -59,7 +59,7 @@ const servicios = [
 
 const Servicio = () => {
   return (
-    <div className="w-full min-h-screen relative overflow-hidden bg-slate-950 text-white">
+    <div className="w-full min-h-screen relative overflow-hidden overflow-x-hidden bg-slate-950 text-white">
       {/* FONDO - IMAGE + OVERLAY */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
