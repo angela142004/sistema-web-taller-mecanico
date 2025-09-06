@@ -1,8 +1,50 @@
 // src/pages/Home.jsx
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const Home = () => {
+  const [correo, setCorreo] = useState("");
+  const [contraseña, setContraseña] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  // 🔹 Función para manejar el login
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:4001/mecanica/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo, contraseña }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Error al iniciar sesión");
+        return;
+      }
+
+      // Guardar token y rol en localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("rol", data.user.rol);
+
+      // Redirigir según rol
+      if (data.user.rol === "admin") {
+        navigate("/dashboard/admin");
+      } else if (data.user.rol === "mecanico") {
+        navigate("/dashboard/mecanico");
+      } else {
+        navigate("/dashboard/cliente");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setError("No se pudo conectar al servidor");
+    }
+  };
+
   return (
     <div className="w-full min-h-screen flex justify-center items-center p-4 md:p-8 relative overflow-hidden">
       {/* Fondo con imagen y overlay */}
@@ -29,8 +71,6 @@ const Home = () => {
         </div>
 
         {/* Formulario de login */}
-        {/* Formulario de login modernizado */}
-        {/* Formulario de login modernizado */}
         <div className="relative bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-sm mx-auto animate-fadeInUp delay-150 border border-slate-600/30 group">
           {/* Patrón de fondo sutil */}
           <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl overflow-hidden">
@@ -44,26 +84,19 @@ const Home = () => {
             ></div>
           </div>
 
-          {/* Efecto de brillo en hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 transform -translate-x-full group-hover:translate-x-full rounded-3xl"></div>
-
           {/* Header del formulario */}
           <div className="relative z-10 text-center mb-6">
-            {/* Título con gradiente */}
             <h2 className="text-2xl md:text-3xl font-bold mb-2 bg-gradient-to-r from-white via-slate-100 to-white bg-clip-text text-transparent">
               ¡Bienvenido!
             </h2>
-
-            {/* Línea decorativa */}
             <div className="flex items-center justify-center mb-3">
               <div className="h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent w-20"></div>
             </div>
-
             <p className="text-slate-300 text-sm">Inicia sesión en tu cuenta</p>
           </div>
 
-          <form className="relative z-10 space-y-5">
-            {/* Campo Usuario */}
+          <form className="relative z-10 space-y-5" onSubmit={handleSubmit}>
+            {/* Campo correo */}
             <div className="relative group/field">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <svg
@@ -81,14 +114,15 @@ const Home = () => {
                 </svg>
               </div>
               <input
-                type="text"
-                placeholder="Usuario"
+                type="email"
+                placeholder="Correo"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
                 className="w-full bg-slate-700/50 text-white border border-slate-600/50 rounded-xl py-3 pl-12 pr-4 
                   focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 
                   hover:border-slate-500/70 transition-all duration-300 placeholder-slate-400
                   focus:bg-slate-700/70 group-focus-within/field:shadow-lg"
               />
-              {/* Línea de foco animada */}
               <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-500 scale-x-0 group-focus-within/field:scale-x-100 transition-transform duration-300 rounded-full"></div>
             </div>
 
@@ -112,16 +146,17 @@ const Home = () => {
               <input
                 type="password"
                 placeholder="Contraseña"
+                value={contraseña}
+                onChange={(e) => setContraseña(e.target.value)}
                 className="w-full bg-slate-700/50 text-white border border-slate-600/50 rounded-xl py-3 pl-12 pr-4 
                   focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 
                   hover:border-slate-500/70 transition-all duration-300 placeholder-slate-400
                   focus:bg-slate-700/70 group-focus-within/field:shadow-lg"
               />
-              {/* Línea de foco animada */}
               <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-500 scale-x-0 group-focus-within/field:scale-x-100 transition-transform duration-300 rounded-full"></div>
             </div>
 
-            {/* Botón de login modernizado */}
+            {/* Botón de login */}
             <button
               type="submit"
               className="relative w-full overflow-hidden bg-gradient-to-r from-purple-600 via-purple-500 to-violet-600 
@@ -129,26 +164,19 @@ const Home = () => {
                 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 
                 group/button border border-purple-400/20"
             >
-              {/* Efecto de brillo en el botón */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/button:opacity-100 transition-opacity duration-500 transform -translate-x-full group-hover/button:translate-x-full"></div>
-
               <span className="relative z-10 tracking-wider">
                 INICIAR SESIÓN
               </span>
             </button>
           </form>
 
-          {/* Separador decorativo */}
-          <div className="relative z-10 flex items-center my-6">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent"></div>
-            <div className="px-4">
-              <div className="w-2 h-2 bg-purple-500 rounded-full opacity-60"></div>
-            </div>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent"></div>
-          </div>
+          {/* Mostrar error si hay */}
+          {error && (
+            <p className="text-red-400 text-sm text-center mt-4">{error}</p>
+          )}
 
-          {/* Enlaces inferiores */}
-          <div className="relative z-10 text-center space-y-3">
+          {/* Enlace a registro */}
+          <div className="relative z-10 text-center space-y-3 mt-6">
             <div className="text-sm">
               <span className="text-slate-300">¿No tienes una cuenta? </span>
               <Link
@@ -157,21 +185,6 @@ const Home = () => {
               >
                 Crear cuenta
               </Link>
-            </div>
-          </div>
-
-          {/* Decoración inferior */}
-          <div className="relative z-10 flex justify-center mt-4">
-            <div className="flex space-x-1">
-              <div className="w-1 h-1 bg-purple-500 rounded-full opacity-40 animate-pulse"></div>
-              <div
-                className="w-1 h-1 bg-violet-500 rounded-full opacity-40 animate-pulse"
-                style={{ animationDelay: "0.5s" }}
-              ></div>
-              <div
-                className="w-1 h-1 bg-purple-500 rounded-full opacity-40 animate-pulse"
-                style={{ animationDelay: "1s" }}
-              ></div>
             </div>
           </div>
         </div>

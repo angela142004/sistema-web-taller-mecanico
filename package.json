@@ -1,0 +1,23 @@
+{
+  "name": "sistema-web-taller-mecanico",
+  "version": "1.0.0",
+  "description": "React · Tailwind CSS · Node.js · Express · Prisma · PostgreSQL · GitHub Actions",
+  "main": "index.js",
+  "scripts": {
+    "start-all": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/angela142004/sistema-web-taller-mecanico.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/angela142004/sistema-web-taller-mecanico/issues"
+  },
+  "homepage": "https://github.com/angela142004/sistema-web-taller-mecanico#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

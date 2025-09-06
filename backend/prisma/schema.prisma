@@ -3,7 +3,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -135,7 +134,7 @@ model Repuestos {
 
 model Servicios {
   id_servicio Int    @id @default(autoincrement())
-  nombre      String @db.VarChar(100)
+  nombre      String @unique @db.VarChar(100)  // <-- agregamos @unique
   descripcion String?
 
   reservas Reservas[]

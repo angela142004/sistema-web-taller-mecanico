@@ -4,7 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
-import userRoutes from "./routes/user.routes.js";
+import userRoutes from "./src/routes/user.routes.js";
 // aquí luego vas agregando más rutas, por ejemplo:
 // import eventRoutes from "./routes/event.routes.js";
 
@@ -26,7 +26,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 // Rutas
-app.use("/api/users", userRoutes);
+app.use("/mecanica", userRoutes);
 // app.use("/api/events", eventRoutes); // ejemplo futuro
 
 // Puerto
