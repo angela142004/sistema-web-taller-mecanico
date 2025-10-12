@@ -7,6 +7,9 @@ import Procesos from "../pages/Procesos";
 import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardCliente from "../pages/DashboardCliente";
 import DashboardMecanico from "../pages/DashboardMecan";
+import AppRouter from "../components/dashboard/route/AppRouter";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 // Función para proteger rutas según rol
 const PrivateRoute = ({ children, rol }) => {
@@ -24,15 +27,58 @@ const PrivateRoute = ({ children, rol }) => {
   return children;
 };
 
+const PublicLayout = ({ children }) => (
+  <>
+    <Navbar />
+    {children}
+    <Footer />
+  </>
+);
+
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<Home />} />
-    <Route path="/register" element={<Register />} />
-    <Route path="/nosotros" element={<Nosotros />} />
-    <Route path="/servicios" element={<Servicios />} />
-    <Route path="/procesos" element={<Procesos />} />
+    <Route
+      path="/"
+      element={
+        <PublicLayout>
+          <Home />
+        </PublicLayout>
+      }
+    />
+    <Route
+      path="/register"
+      element={
+        <PublicLayout>
+          <Register />
+        </PublicLayout>
+      }
+    />
+    <Route
+      path="/nosotros"
+      element={
+        <PublicLayout>
+          <Nosotros />
+        </PublicLayout>
+      }
+    />
+    <Route
+      path="/servicios"
+      element={
+        <PublicLayout>
+          <Servicios />
+        </PublicLayout>
+      }
+    />
+    <Route
+      path="/procesos"
+      element={
+        <PublicLayout>
+          <Procesos />
+        </PublicLayout>
+      }
+    />
 
-    {/* Dashboards protegidos */}
+    {/* Dashboards protegidos: NO usan PublicLayout */}
     <Route
       path="/dashboard/admin"
       element={
@@ -42,10 +88,10 @@ const AppRoutes = () => (
       }
     />
     <Route
-      path="/dashboard/cliente"
+      path="/dashboard/cliente/*"
       element={
         <PrivateRoute rol="cliente">
-          <DashboardCliente />
+          <AppRouter />
         </PrivateRoute>
       }
     />
