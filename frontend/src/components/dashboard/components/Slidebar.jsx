@@ -96,9 +96,9 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
             onClick={onClose}
           />
           <Item
-            to="/dashboard/cliente/estado"
+            to="/dashboard/cliente/vehiculos"
             icon={Gauge}
-            label="Consultar estado de vehículo"
+            label="Mis vehículos"
             onClick={onClose}
           />
           <Item

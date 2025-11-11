@@ -11,6 +11,7 @@ import HistorialServicio from "../pages/clientes/HistorialServicio.jsx";
 import EstadoVehiculo from "../pages/clientes/EstadoVehiculo.jsx";
 import Configuracion from "../pages/clientes/Configuracion.jsx";
 import NotFound from "../pages/clientes/NotFound.jsx";
+import MiVehiculo from "../pages/clientes/MiVehiculo.jsx";
 
 function ClientLayout() {
   const [open, setOpen] = useState(false);
@@ -59,6 +60,7 @@ export default function AppRouter() {
         <Route path="historial" element={<HistorialServicio />} />
         <Route path="estado" element={<EstadoVehiculo />} />
         <Route path="configuracion" element={<Configuracion />} />
+        <Route path="vehiculos" element={<MiVehiculo />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

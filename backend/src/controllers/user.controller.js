@@ -46,6 +46,22 @@ export const registerUser = async (req, res) => {
       },
     });
 
+    // --- NUEVO: Si el usuario es cliente, crear registro automáticamente en Clientes ---
+    if (rolFinal === "cliente") {
+      await prisma.clientes.create({
+        data: {
+          id_usuario: newUser.id_usuario,
+          telefono: "", // puede actualizarse después
+          direccion: "",
+        },
+      });
+      console.log(
+        "[REGISTER] Cliente creado automáticamente para usuario:",
+        newUser.id_usuario
+      );
+    }
+    // --- FIN NUEVO ---
+
     res.status(201).json({
       message: "Usuario registrado correctamente",
       user: {
@@ -81,13 +97,25 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
-    // Crear token JWT
+    // Crear token JWT (asegurar que incluye id_usuario, correo, rol)
     const token = jwt.sign(
-      { id_usuario: user.id_usuario, correo: user.correo, rol: user.rol },
+      {
+        id_usuario: user.id_usuario,
+        correo: user.correo,
+        rol: user.rol,
+      },
       config.jwtSecret,
       { expiresIn: "1h" }
     );
 
+    console.log(
+      "[LOGIN] Token creado para usuario:",
+      user.id_usuario,
+      "rol:",
+      user.rol
+    );
+
+    // Devolver token + user completo
     res.json({
       message: "Login exitoso",
       token,
@@ -204,5 +232,45 @@ export const deleteUser = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error al eliminar el usuario", error: error.message });
+  }
+};
+
+// 📌 NUEVO: Sincronizar clientes (crea entradas faltantes en tabla Clientes)
+export const syncClientes = async (req, res) => {
+  try {
+    // Buscar todos los usuarios con rol "cliente" que no tienen entrada en Clientes
+    const usuariosCliente = await prisma.usuarios.findMany({
+      where: { rol: "cliente" },
+    });
+
+    let creados = 0;
+    for (const usuario of usuariosCliente) {
+      const clienteExiste = await prisma.clientes.findUnique({
+        where: { id_usuario: usuario.id_usuario },
+      });
+
+      if (!clienteExiste) {
+        await prisma.clientes.create({
+          data: {
+            id_usuario: usuario.id_usuario,
+            telefono: "",
+            direccion: "",
+          },
+        });
+        creados++;
+        console.log("[SYNC] Cliente creado para usuario:", usuario.id_usuario);
+      }
+    }
+
+    res.json({
+      message: `Sincronización completada. ${creados} clientes creados.`,
+      creados,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Error al sincronizar clientes",
+      error: error.message,
+    });
   }
 };

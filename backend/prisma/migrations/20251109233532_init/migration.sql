@@ -10,6 +10,9 @@ CREATE TYPE "public"."EstadoAsignacion" AS ENUM ('pendiente', 'en_proceso', 'fin
 -- CreateEnum
 CREATE TYPE "public"."EstadoCotizacion" AS ENUM ('cotizado', 'aprobado', 'facturado');
 
+-- CreateEnum
+CREATE TYPE "public"."EstadoAtencion" AS ENUM ('PENDIENTE', 'CONFIRMADA', 'CANCELADA');
+
 -- CreateTable
 CREATE TABLE "public"."Usuarios" (
     "id_usuario" SERIAL NOT NULL,
@@ -89,6 +92,7 @@ CREATE TABLE "public"."Servicios" (
     "id_servicio" SERIAL NOT NULL,
     "nombre" VARCHAR(100) NOT NULL,
     "descripcion" TEXT,
+    "duracion" INTEGER NOT NULL DEFAULT 60,
 
     CONSTRAINT "Servicios_pkey" PRIMARY KEY ("id_servicio")
 );
@@ -99,9 +103,10 @@ CREATE TABLE "public"."Reservas" (
     "id_cliente" INTEGER NOT NULL,
     "id_vehiculo" INTEGER NOT NULL,
     "id_servicio" INTEGER NOT NULL,
-    "fecha_solicitud" DATE NOT NULL,
-    "fecha_atencion" DATE NOT NULL,
-    "estado" "public"."EstadoReserva" NOT NULL,
+    "fecha" TIMESTAMP(3) NOT NULL,
+    "hora_inicio" TIMESTAMP(3) NOT NULL,
+    "hora_fin" TIMESTAMP(3) NOT NULL,
+    "estado" "public"."EstadoAtencion" NOT NULL DEFAULT 'PENDIENTE',
 
     CONSTRAINT "Reservas_pkey" PRIMARY KEY ("id_reserva")
 );
@@ -165,6 +170,9 @@ CREATE UNIQUE INDEX "Vehiculos_placa_key" ON "public"."Vehiculos"("placa");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Marcas_nombre_key" ON "public"."Marcas"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Servicios_nombre_key" ON "public"."Servicios"("nombre");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Cotizaciones_id_reserva_key" ON "public"."Cotizaciones"("id_reserva");

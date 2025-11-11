@@ -14,7 +14,8 @@ const Home = () => {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:4001/mecanica/login", {
+      const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      const response = await fetch(`${API}/mecanica/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo, contraseña }),
@@ -30,6 +31,9 @@ const Home = () => {
       // Guardar token y rol en localStorage
       localStorage.setItem("token", data.token);
       localStorage.setItem("rol", data.user.rol);
+      localStorage.setItem("id_usuario", data.user.id_usuario); // guardar id_usuario también
+
+      console.log("[HOME] Login exitoso, token guardado, rol:", data.user.rol);
 
       // Redirigir según rol
       if (data.user.rol === "admin") {

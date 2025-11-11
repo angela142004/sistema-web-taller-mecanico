@@ -7,7 +7,6 @@ const SERVICIOS = [
   "Mantenimiento preventivo",
   "Cambio de aceite y filtro",
   "Cambio de filtros (aire, cabina, combustible)",
-  "Scanner y diagnóstico electrónico",
   "Revisión de luces y sistema eléctrico",
   "Batería (prueba/cambio)",
   "Alternador (reparación/cambio)",
@@ -21,9 +20,6 @@ const SERVICIOS = [
   "Suspensión (amortiguadores, bujes, rótulas)",
   "Dirección (terminales, axiales, cremallera)",
   "Alineación y balanceo",
-  "Rotación de neumáticos",
-  "Montaje/Desmontaje de neumáticos",
-  "Parcheo de llantas",
   "Embrague (revisión/cambio)",
   "Caja de cambios (mecánica/automática)",
   "Diferencial (servicio)",
@@ -42,15 +38,10 @@ const SERVICIOS = [
   "Escape/catalizador (revisión/reemplazo)",
   "Turbo (diagnóstico/mantenimiento)",
   "Sensor O2/MAF/Map (diagnóstico/reemplazo)",
-  "Revisión pre-compra",
-  "Inspección para viaje",
   "Revisión técnica vehicular (pre-ITV)",
-  "Cambio de parabrisas/cristales",
   "Elevavidrios/cerraduras (eléctricas)",
-  "Carrocería y pintura (hojalatería)",
   "Pulido/encerado",
   "Lavado de motor",
-  "Instalación de accesorios (alarma, audio, luces)",
   "Programación de llaves/controles",
   "Calibración de sensores (TPMS/ADAS básico)",
 ];
@@ -318,64 +309,297 @@ function Combo({
   );
 }
 
-/* --- Página --- */
+/* --- Página (modificada) --- */
 export default function ReservarServicio() {
+  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const token = localStorage.getItem("token") || "";
+
   const [marca, setMarca] = useState("");
   const [modelo, setModelo] = useState("");
-  const [servicio, setServicio] = useState("");
+  const [servicio, setServicio] = useState(""); // will hold service id or name depending on API
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
+  const [servicios, setServicios] = useState([]); // loaded from backend
+  const [vehiculos, setVehiculos] = useState([]); // user's vehicles from backend
 
-  const modelOptions = useMemo(
-    () => (marca && MODELS_BY_BRAND[marca] ? MODELS_BY_BRAND[marca] : []),
-    [marca]
-  );
-  useEffect(() => setModelo(""), [marca]); // si cambia la marca, limpiar modelo
+  /* Marcas (A–Z) */
+  const [marcasBackend, setMarcasBackend] = useState([]); // [{ id_marca, nombre }]
+  const [modelosBackend, setModelosBackend] = useState({}); // { [id_marca]: [ { id_modelo, nombre } ] }
 
-  const disabled = !(modelo && marca && servicio && fecha && hora);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const confirmar = () => {
-    alert(
-      `✅ Reserva registrada:
-    - Marca: ${marca}
-    - Modelo: ${modelo}
-    - Servicio: ${servicio}
-    - Fecha: ${new Date(fecha).toLocaleDateString()} ${hora}`
+  // Añadir estado para vehículo seleccionado
+  const [vehiculoId, setVehiculoId] = useState(""); // nuevo: id del vehículo elegido
+
+  // Cargar servicios y vehículos al montar
+  useEffect(() => {
+    fetchServicios();
+    fetchVehiculos();
+    loadMarcasFromBackend();
+    // eslint-disable-next-line
+  }, []);
+
+  // función para cargar servicios desde backend
+  const fetchServicios = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/mecanica/servicios`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        console.warn("[fetchServicios] No ok status:", res.status);
+        setServicios([]);
+        return;
+      }
+      const data = await res.json();
+      console.log("[fetchServicios] Datos recibidos:", data);
+      setServicios(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("[fetchServicios] Error:", e.message);
+      setServicios([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // función para cargar vehículos del cliente
+  const fetchVehiculos = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/mecanica/vehiculos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        console.warn("[fetchVehiculos] No ok status:", res.status);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("[fetchVehiculos] Datos recibidos:", data);
+      setVehiculos(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("[fetchVehiculos] Error:", e.message);
+      setError(`Error cargando vehículos: ${e.message}`);
+      setVehiculos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // extraer loadMarcas en función reutilizable (usa API)
+  const loadMarcasFromBackend = async () => {
+    try {
+      const res = await fetch(`${API}/mecanica/marcas`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        console.warn("[loadMarcas] No ok status:", res.status);
+        setMarcasBackend([]);
+        return;
+      }
+      const data = await res.json();
+      console.log("[loadMarcas] Datos recibidos:", data);
+      setMarcasBackend(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("[loadMarcas] Error:", e.message);
+      setMarcasBackend([]);
+    }
+  };
+
+  // cargar modelos del backend cuando cambia la marca (si el endpoint existe)
+  useEffect(() => {
+    const loadModelos = async () => {
+      const marcaObj = marcasBackend.find((m) => m.nombre === marca);
+      if (!marcaObj) return;
+      try {
+        const res = await fetch(
+          `${API}/mecanica/modelos?marcaId=${marcaObj.id_marca}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setModelosBackend((prev) => ({
+          ...prev,
+          [marcaObj.id_marca]: data || [],
+        }));
+      } catch (e) {
+        // fallback: no rompe la UI
+      }
+    };
+    loadModelos();
+  }, [marca, marcasBackend, token]); // eslint-disable-line
+
+  // modelOptions: primero backend, luego fallback local MODELS_BY_BRAND
+  const modelOptions = useMemo(() => {
+    const marcaObj = marcasBackend.find((m) => m.nombre === marca);
+    if (marcaObj && modelosBackend[marcaObj.id_marca]?.length) {
+      return modelosBackend[marcaObj.id_marca].map((m) => m.nombre);
+    }
+    return marca && MODELS_BY_BRAND[marca] ? MODELS_BY_BRAND[marca] : [];
+  }, [marca, marcasBackend, modelosBackend]);
+
+  // obtener duración del servicio seleccionado
+  const duracionSeleccionada = useMemo(() => {
+    // servicio may be id or name depending on options; we store id_servicio as string for select value
+    if (!servicio) return 0;
+    const s = servicios.find(
+      (x) =>
+        String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
+        x.nombre === servicio
     );
+    return s ? Number(s.duracion ?? 0) : 0;
+  }, [servicio, servicios]);
+
+  // sustituir la validación original por exigir vehiculoId
+  const canConfirm = Boolean(vehiculoId && servicio && fecha && hora);
+
+  // calcular fechas ISO
+  const buildDateTimes = () => {
+    // fecha: 'YYYY-MM-DD', hora: 'HH:mm'
+    const start = new Date(`${fecha}T${hora}:00`);
+    const end = new Date(start.getTime() + duracionSeleccionada * 60000);
+    return { start, end };
+  };
+
+  const handleConfirm = async () => {
+    setError("");
+    setSuccess("");
+    if (!canConfirm) {
+      setError("Completa todos los campos y selecciona un vehículo.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { start, end } = buildDateTimes();
+
+      // usar vehiculoId (seleccionado por el usuario)
+      const idVehiculo = Number(vehiculoId);
+
+      // encontrar id_servicio real
+      const sObj = servicios.find(
+        (x) =>
+          String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
+          x.nombre === servicio
+      );
+      const idServicio = sObj?.id_servicio ?? sObj?.id ?? sObj?.idServicio;
+
+      const payload = {
+        id_vehiculo: idVehiculo,
+        id_servicio: Number(idServicio),
+        fecha: start.toISOString(), // fecha completa (puede ajustarse según backend)
+        hora_inicio: start.toISOString(),
+        hora_fin: end.toISOString(),
+        estado: "PENDIENTE", // enviar estado por defecto
+      };
+
+      const res = await fetch(`${API}/mecanica/reservas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Error al crear la reserva");
+      }
+
+      setSuccess("Reserva creada correctamente ✅");
+      // limpiar formulario (o mantener según UX)
+      setMarca("");
+      setModelo("");
+      setServicio("");
+      setFecha("");
+      setHora("");
+      setVehiculoId(""); // limpiar selección
+    } catch (e) {
+      setError(e.message || "Error al confirmar reserva");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* CARD 1: Marca + Modelo (Modelo sin chevron) */}
+      {/* Mostrar error global si hay */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* Mostrar spinner si está cargando */}
+      {loading && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/60 text-center">
+          ⏳ Cargando datos...
+        </div>
+      )}
+
+      {/* CARD 1: Selección de vehículo */}
       <section className="relative rounded-2xl border border-white/10 bg-white/5 p-6">
         <Ellipsis className="absolute right-4 top-4 text-white/60" size={18} />
-        <div className="grid gap-6 md:grid-cols-2">
-          <Combo
-            label="Marca"
-            value={marca}
-            onChange={setMarca}
-            options={BRANDS}
-            placeholder="Seleccionar o escribir marca"
-            showUseOption={true}
-            showChevron={true}
-          />
-          <Combo
-            label="Modelo"
-            value={modelo}
-            onChange={setModelo}
-            options={modelOptions}
-            placeholder={
-              modelOptions.length
-                ? "Seleccionar o escribir modelo"
-                : "Escribir modelo del carro"
-            }
-            showUseOption={false}
-            showChevron={false} // ⬅️ SIN flecha
-          />
-        </div>
+        <h3 className="text-white font-semibold mb-4">Seleccionar vehículo</h3>
+
+        {loading ? (
+          <div className="text-white/60">Cargando vehículos...</div>
+        ) : vehiculos.length === 0 ? (
+          <div className="text-white/60">
+            No tienes vehículos registrados. Ve a "Mis vehículos" para agregar
+            uno.
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-white font-semibold">Vehículo</label>
+              <select
+                value={vehiculoId} // <- asegurar value ligado
+                onChange={(e) => {
+                  const chosenId = e.target.value;
+                  setVehiculoId(chosenId); // <- actualizar vehiculoId
+                  const chosen = vehiculos.find(
+                    (v) =>
+                      String(v.id_vehiculo ?? v.id ?? v.idVehiculo) === chosenId
+                  );
+                  if (chosen) {
+                    setMarca(
+                      chosen.modelo?.marca?.nombre ?? chosen.marca ?? marca
+                    );
+                    setModelo(chosen.modelo?.nombre ?? chosen.model ?? modelo);
+                  }
+                }}
+                className={`${pill}`}
+              >
+                <option value="">Seleccionar vehículo</option>
+                {vehiculos.map((v) => {
+                  const id = v.id_vehiculo ?? v.id ?? v.idVehiculo;
+                  return (
+                    <option key={id} value={id}>
+                      {v.modelo?.marca?.nombre ?? v.marca ?? "—"}{" "}
+                      {v.modelo?.nombre ?? v.modelo ?? v.model ?? ""} —{" "}
+                      {v.placa || v.plate || "—"}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-white font-semibold">Nota</label>
+              <div className="text-sm text-white/70">
+                Selecciona el vehículo para el cual deseas agendar el servicio.
+                Si no aparece, regístralo en "Mis vehículos".
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* CARD 2: Servicio */}
+      {/* CARD 2: Servicio (cargado desde backend) */}
       <section className="relative rounded-2xl border border-white/10 bg-white/5 p-6">
         <Ellipsis className="absolute right-4 top-4 text-white/60" size={18} />
         <div className="flex flex-col gap-2">
@@ -389,11 +613,14 @@ export default function ReservarServicio() {
               className={`${pill} appearance-none pr-10`}
             >
               <option value="" disabled>
-                Seleccionar servicio
+                {loading ? "Cargando servicios..." : "Seleccionar servicio"}
               </option>
-              {SERVICIOS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {servicios.map((s) => (
+                <option
+                  key={s.id_servicio ?? s.id ?? s.idServicio ?? s.nombre}
+                  value={s.id_servicio ?? s.id ?? s.idServicio ?? s.nombre}
+                >
+                  {s.nombre} {s.duracion ? `— ${s.duracion} min` : ""}
                 </option>
               ))}
             </select>
@@ -470,7 +697,13 @@ export default function ReservarServicio() {
             </div>
             <div>
               <p className="text-sm text-white/60">Servicio</p>
-              <p className="font-medium">{servicio || "—"}</p>
+              <p className="font-medium">
+                {servicios.find(
+                  (x) =>
+                    String(x.id_servicio ?? x.id ?? x.idServicio) ===
+                    String(servicio)
+                )?.nombre || "—"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-white/60">Fecha y hora</p>
@@ -479,12 +712,22 @@ export default function ReservarServicio() {
                 {hora || ""}
               </p>
             </div>
+            <div>
+              <p className="text-sm text-white/60">Duración (min)</p>
+              <p className="font-medium">{duracionSeleccionada || "—"}</p>
+            </div>
           </div>
 
           <div className="flex flex-col items-end justify-between gap-4">
             <div className="text-right text-xs text-white/70">
               <div>{marca || "—"}</div>
-              <div>{servicio || "—"}</div>
+              <div>
+                {servicios.find(
+                  (x) =>
+                    String(x.id_servicio ?? x.id ?? x.idServicio) ===
+                    String(servicio)
+                )?.nombre || "—"}
+              </div>
               <div>
                 {fecha ? new Date(fecha).toLocaleDateString() : "—"}{" "}
                 {hora || ""}
@@ -492,19 +735,33 @@ export default function ReservarServicio() {
             </div>
 
             <button
-              disabled={!(modelo && marca && servicio && fecha && hora)}
-              onClick={confirmar}
+              disabled={!canConfirm || submitting}
+              onClick={handleConfirm}
               className={`w-full md:w-[420px] h-12 rounded-xl font-semibold transition
                     ${
-                      !(modelo && marca && servicio && fecha && hora)
+                      !canConfirm
                         ? "bg-white/10 text-white/40 cursor-not-allowed"
                         : "bg-[#3b138d] hover:bg-[#4316a1]"
                     }`}
             >
-              Confirmar Reserva
+              {submitting ? "Guardando..." : "Confirmar Reserva"}
             </button>
           </div>
         </div>
+
+        <div className="mt-2">
+          <span className="text-sm text-white/60">Estado</span>
+          <div className="inline-block ml-2 px-3 py-1 rounded-full text-sm font-medium bg-yellow-600/90 text-white">
+            PENDIENTE
+          </div>
+        </div>
+
+        {(error || success) && (
+          <div className="mt-4">
+            {error && <p className="text-red-400">{error}</p>}
+            {success && <p className="text-green-400">{success}</p>}
+          </div>
+        )}
       </section>
     </div>
   );

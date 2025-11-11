@@ -41,14 +41,14 @@ enum EstadoCotizacion {
 // ===================== MODELOS =====================
 
 model Usuarios {
-  id_usuario   Int       @id @default(autoincrement())
-  nombre       String    @db.VarChar(100)
-  correo       String    @unique @db.VarChar(100)
-  contraseña   String    @db.VarChar(255)
-  rol          Rol
+  id_usuario  Int    @id @default(autoincrement())
+  nombre      String @db.VarChar(100)
+  correo      String @unique @db.VarChar(100)
+  contraseña String @db.VarChar(255)
+  rol         Rol
 
-  cliente      Clientes?
-  mecanico     Mecanicos?
+  cliente  Clientes?
+  mecanico Mecanicos?
 
   @@map("Usuarios")
 }
@@ -59,21 +59,21 @@ model Clientes {
   telefono   String @db.VarChar(20)
   direccion  String @db.VarChar(150)
 
-  usuario    Usuarios @relation(fields: [id_usuario], references: [id_usuario])
-  vehiculos  Vehiculos[]
-  reservas   Reservas[]
+  usuario   Usuarios    @relation(fields: [id_usuario], references: [id_usuario])
+  vehiculos Vehiculos[]
+  reservas  Reservas[]
 
   @@map("Clientes")
 }
 
 model Mecanicos {
-  id_mecanico   Int    @id @default(autoincrement())
-  id_usuario    Int    @unique
-  telefono      String @db.VarChar(20)
-  especialidad  String @db.VarChar(100)
+  id_mecanico   Int      @id @default(autoincrement())
+  id_usuario    Int      @unique
+  telefono      String   @db.VarChar(20)
+  especialidad  String   @db.VarChar(100)
   fecha_ingreso DateTime @db.Date
 
-  usuario      Usuarios   @relation(fields: [id_usuario], references: [id_usuario])
+  usuario      Usuarios              @relation(fields: [id_usuario], references: [id_usuario])
   asignaciones Asignaciones[]
   historial    Historial_Servicios[]
 
@@ -87,9 +87,9 @@ model Vehiculos {
   anio        Int
   placa       String @unique @db.VarChar(15)
 
-  cliente   Clientes @relation(fields: [id_cliente], references: [id_cliente])
-  modelo    Modelos  @relation(fields: [id_modelo], references: [id_modelo])
-  reservas  Reservas[]
+  cliente  Clientes   @relation(fields: [id_cliente], references: [id_cliente])
+  modelo   Modelos    @relation(fields: [id_modelo], references: [id_modelo])
+  reservas Reservas[]
 
   @@map("Vehiculos")
 }
@@ -122,8 +122,8 @@ model Repuestos {
   id_marca      Int
   id_modelo     Int
   anio          Int
-  precio_compra Decimal @db.Decimal(10,2)
-  precio_venta  Decimal @db.Decimal(10,2)
+  precio_compra Decimal @db.Decimal(10, 2)
+  precio_venta  Decimal @db.Decimal(10, 2)
   stock         Int
 
   marca  Marcas  @relation(fields: [id_marca], references: [id_marca])
@@ -133,9 +133,10 @@ model Repuestos {
 }
 
 model Servicios {
-  id_servicio Int    @id @default(autoincrement())
-  nombre      String @unique @db.VarChar(100)  // <-- agregamos @unique
+  id_servicio Int     @id @default(autoincrement())
+  nombre      String  @unique @db.VarChar(100)
   descripcion String?
+  duracion    Int     @default(60) // duración en minutos ⏱️
 
   reservas Reservas[]
 
@@ -143,20 +144,21 @@ model Servicios {
 }
 
 model Reservas {
-  id_reserva      Int            @id @default(autoincrement())
-  id_cliente      Int
-  id_vehiculo     Int
-  id_servicio     Int
-  fecha_solicitud DateTime @db.Date
-  fecha_atencion  DateTime @db.Date
-  estado          EstadoReserva
+  id_reserva  Int            @id @default(autoincrement())
+  id_cliente  Int
+  id_vehiculo Int
+  id_servicio Int
+  fecha       DateTime // Fecha de atención seleccionada por el cliente
+  hora_inicio DateTime // Hora exacta de inicio del servicio
+  hora_fin    DateTime // Hora estimada de término según el tipo de servicio
+  estado      EstadoAtencion @default(PENDIENTE)
 
-  cliente     Clientes @relation(fields: [id_cliente], references: [id_cliente])
-  vehiculo    Vehiculos @relation(fields: [id_vehiculo], references: [id_vehiculo])
-  servicio    Servicios @relation(fields: [id_servicio], references: [id_servicio])
-  asignacion  Asignaciones[]
-  historial   Historial_Servicios[]
-  cotizacion  Cotizaciones?
+  cliente    Clientes              @relation(fields: [id_cliente], references: [id_cliente])
+  vehiculo   Vehiculos             @relation(fields: [id_vehiculo], references: [id_vehiculo])
+  servicio   Servicios             @relation(fields: [id_servicio], references: [id_servicio])
+  asignacion Asignaciones[]
+  historial  Historial_Servicios[]
+  cotizacion Cotizaciones?
 
   @@map("Reservas")
 }
@@ -165,7 +167,7 @@ model Asignaciones {
   id_asignacion    Int              @id @default(autoincrement())
   id_reserva       Int
   id_mecanico      Int
-  fecha_asignacion DateTime @db.Date
+  fecha_asignacion DateTime         @db.Date
   estado           EstadoAsignacion
   observaciones    String?
 
@@ -176,12 +178,12 @@ model Asignaciones {
 }
 
 model Historial_Servicios {
-  id_historial Int    @id @default(autoincrement())
+  id_historial Int      @id @default(autoincrement())
   id_reserva   Int
   id_mecanico  Int
   descripcion  String?
   fecha        DateTime @db.Date
-  costo        Decimal  @db.Decimal(10,2)
+  costo        Decimal  @db.Decimal(10, 2)
 
   reserva  Reservas  @relation(fields: [id_reserva], references: [id_reserva])
   mecanico Mecanicos @relation(fields: [id_mecanico], references: [id_mecanico])
@@ -191,24 +193,30 @@ model Historial_Servicios {
 
 model Cotizaciones {
   id_cotizacion Int              @id @default(autoincrement())
-  id_reserva    Int   @unique
-  fecha         DateTime @db.Date
-  total         Decimal @db.Decimal(10,2)
+  id_reserva    Int              @unique
+  fecha         DateTime         @db.Date
+  total         Decimal          @db.Decimal(10, 2)
   estado        EstadoCotizacion
 
-  reserva Reservas @relation(fields: [id_reserva], references: [id_reserva])
+  reserva Reservas  @relation(fields: [id_reserva], references: [id_reserva])
   factura Facturas?
 
   @@map("Cotizaciones")
 }
 
 model Facturas {
-  id_factura    Int     @id @default(autoincrement())
-  id_cotizacion Int     @unique
+  id_factura    Int      @id @default(autoincrement())
+  id_cotizacion Int      @unique
   fecha         DateTime @db.Date
-  total         Decimal  @db.Decimal(10,2)
+  total         Decimal  @db.Decimal(10, 2)
 
   cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion])
 
   @@map("Facturas")
+}
+
+enum EstadoAtencion {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
 }
