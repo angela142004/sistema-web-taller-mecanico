@@ -1,142 +1,25 @@
-// src/pages/cliente/Cotizacion.jsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ChevronDown,
   Eye,
-  Download,
   CheckCircle2,
   XCircle,
   X,
-  Printer,
   RotateCcw,
 } from "lucide-react";
 
-/* ========= helpers ========= */
+/* === Helpers === */
 const money = (n) =>
-  (Number(n) || 0).toLocaleString(undefined, {
+  (Number(n) || 0).toLocaleString("es-PE", {
     style: "currency",
-    currency: "USD",
+    currency: "PEN",
     maximumFractionDigits: 2,
   });
-const fmtDate = (s) => new Date(s).toLocaleDateString();
+const fmtDate = (s) => (s ? new Date(s).toLocaleDateString("es-PE") : "—");
 
-/* ========= API (stubs; conecta tu backend con VITE_API_BASE_URL) ========= */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
-
-const API = {
-  async listQuotes() {
-    try {
-      if (!API_BASE) throw new Error("sin backend");
-      const res = await fetch(`${API_BASE}/api/client/quotes`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Error al listar");
-      return await res.json();
-    } catch {
-      // Mock si no hay backend
-      await new Promise((r) => setTimeout(r, 600));
-      return [
-        {
-          id: 23015,
-          fecha: "2025-08-24",
-          servicio: "Revisión general",
-          marca: "Toyota",
-          modelo: "Corolla",
-          estado: "cotizado",
-          items: [
-            { desc: "Revisión general", qty: 1, price: 80 },
-            { desc: "Filtro de aire", qty: 1, price: 25 },
-            { desc: "Aceite 5W-30", qty: 4, price: 12 },
-          ],
-          otros: 0,
-          igv: 0.18,
-          notas:
-            "Válido por 7 días. No incluye reparaciones no diagnosticadas.",
-        },
-        {
-          id: 23016,
-          fecha: "2025-08-23",
-          servicio: "Frenos",
-          marca: "Kia",
-          modelo: "Rio",
-          estado: "aprobado",
-          items: [
-            { desc: "Pastillas delanteras", qty: 1, price: 120 },
-            { desc: "Rectificado de discos", qty: 1, price: 60 },
-            { desc: "Mano de obra", qty: 1, price: 90 },
-          ],
-          otros: 10,
-          igv: 0.18,
-          notas: "Tiempo estimado: 3 horas.",
-        },
-      ];
-    }
-  },
-
-  async acceptQuote(id) {
-    try {
-      if (!API_BASE) throw new Error("sin backend");
-      const res = await fetch(`${API_BASE}/api/client/quotes/${id}/accept`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Error al aceptar");
-      return await res.json();
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-      return { ok: true };
-    }
-  },
-
-  async requestChanges(id, message) {
-    try {
-      if (!API_BASE) throw new Error("sin backend");
-      const res = await fetch(
-        `${API_BASE}/api/client/quotes/${id}/request-changes`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
-        }
-      );
-      if (!res.ok) throw new Error("Error al solicitar cambios");
-      return await res.json();
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-      return { ok: true };
-    }
-  },
-};
-
-/* ========= UI genéricos ========= */
-function Modal({ open, onClose, title, children, footer }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 text-white">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="absolute left-1/2 top-1/2 w-[min(780px,95vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#15132b] p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="mt-4">{children}</div>
-        {footer ? <div className="mt-5">{footer}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-const EstadoChip = ({ estado }) => {
+/* === Chips, toasts y modales === */
+function EstadoChip({ estado }) {
   const map = {
     cotizado: { text: "Cotizado", color: "bg-sky-500/80" },
     aprobado: { text: "Aprobado", color: "bg-emerald-600/80" },
@@ -149,7 +32,7 @@ const EstadoChip = ({ estado }) => {
       {text}
     </span>
   );
-};
+}
 
 function Toast({ type = "ok", children }) {
   const style =
@@ -167,231 +50,106 @@ function Toast({ type = "ok", children }) {
   );
 }
 
-function SkeletonTableRows({ rows = 4 }) {
+function Modal({ open, onClose, title, children, footer }) {
+  if (!open) return null;
   return (
-    <>
-      {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-t border-white/10">
-          {Array.from({ length: 6 }).map((__, j) => (
-            <td key={j} className="py-3 px-4">
-              <div className="h-4 w-3/4 bg-white/10 rounded animate-pulse" />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
-  );
-}
-
-function Info({ k, v }) {
-  return (
-    <div className="grid grid-cols-5 items-center">
-      <div className="col-span-2 text-white/80">{k}</div>
-      <div className="col-span-3">{v}</div>
-    </div>
-  );
-}
-
-/* ========= Barra de controles ========= */
-function ControlBar({ query, setQuery, status, setStatus, onReload }) {
-  return (
-    <div className="grid grid-cols-12 gap-3 items-stretch">
-      {/* Buscador */}
-      <div className="col-span-12 relative">
-        <input
-          className="w-full h-11 rounded-2xl bg-[#3b138d] text-white placeholder:text-white/70
-                     px-9 pr-9 outline-none border border-white/10 focus:ring-2 focus:ring-white/20"
-          placeholder="Buscar por servicio, marca, modelo o N°"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Buscar cotización"
-        />
-        <Search
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10"
-            aria-label="Limpiar búsqueda"
-          >
-            <X size={16} />
+    <div className="fixed inset-0 z-50 text-white">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="absolute left-1/2 top-1/2 w-[min(780px,95vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#15132b] p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
+            <X size={18} />
           </button>
-        )}
-      </div>
-
-      {/* Filtro estado */}
-      <div className="col-span-8 sm:col-span-4 relative">
-        <select
-          className="w-full h-11 rounded-2xl bg-white/10 text-white px-4 pr-9 outline-none
-                     border border-white/10 focus:ring-2 focus:ring-white/20 appearance-none"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          aria-label="Filtrar por estado"
-        >
-          <option value="todas">todas</option>
-          <option value="cotizado">cotizado</option>
-          <option value="aprobado">aprobado</option>
-          <option value="rechazado">rechazado</option>
-          <option value="facturado">facturado</option>
-        </select>
-        <ChevronDown
-          size={16}
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/90"
-        />
-      </div>
-
-      {/* Recargar */}
-      <div className="col-span-4 sm:col-span-2">
-        <button
-          onClick={onReload}
-          className="w-full h-11 rounded-2xl bg-white/10 hover:bg-white/15
-                     flex items-center justify-center gap-2"
-          aria-label="Recargar cotizaciones"
-        >
-          <RotateCcw size={16} />
-          <span className="hidden sm:inline">Recargar</span>
-        </button>
+        </div>
+        <div className="mt-4">{children}</div>
+        {footer && <div className="mt-5">{footer}</div>}
       </div>
     </div>
   );
 }
 
-/* ========= Acciones (desktop en línea / móvil 2×2) ========= */
-function ActionCell({ quote, onView, onPrint, onAccept, onReject }) {
-  const canAccept = quote.estado === "cotizado";
-  const canReject = quote.estado === "cotizado" || quote.estado === "aprobado";
-  const btn =
-    "h-10 w-10 rounded-xl grid place-items-center transition shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
-
+/* === Select personalizado oscuro === */
+function DarkSelect({ value, setValue, options }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="text-white">
-      {/* MÓVIL: 2x2 */}
-      <div className="grid grid-cols-2 gap-2 md:hidden min-w-[140px]">
-        <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={onView}
-          title="Ver detalles"
-        >
-          <Eye size={18} />
-        </button>
-        <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={onPrint}
-          title="Descargar / Imprimir"
-        >
-          <Download size={18} />
-        </button>
-        <button
-          className={`${btn} bg-emerald-600/80 hover:bg-emerald-600`}
-          disabled={!canAccept}
-          onClick={onAccept}
-          title="Aceptar"
-        >
-          <CheckCircle2 size={18} />
-        </button>
-        <button
-          className={`${btn} bg-rose-600/80 hover:bg-rose-600`}
-          disabled={!canReject}
-          onClick={onReject}
-          title="Solicitar cambios"
-        >
-          <XCircle size={18} />
-        </button>
-      </div>
+    <div className="relative w-full">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full h-11 rounded-2xl bg-[#3b138d] text-white px-4 pr-9
+                   outline-none border border-white/10 focus:ring-2 focus:ring-white/20
+                   flex items-center justify-between capitalize"
+      >
+        <span>{value}</span>
+        <ChevronDown size={16} className="text-white" />
+      </button>
 
-      {/* DESKTOP: en línea */}
-      <div className="hidden md:flex gap-2">
-        <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={onView}
-          title="Ver detalles"
-        >
-          <Eye size={18} />
-        </button>
-        <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={onPrint}
-          title="Descargar / Imprimir"
-        >
-          <Download size={18} />
-        </button>
-        <button
-          className={`${btn} bg-emerald-600/80 hover:bg-emerald-600`}
-          disabled={!canAccept}
-          onClick={onAccept}
-          title="Aceptar"
-        >
-          <CheckCircle2 size={18} />
-        </button>
-        <button
-          className={`${btn} bg-rose-600/80 hover:bg-rose-600`}
-          disabled={!canReject}
-          onClick={onReject}
-          title="Solicitar cambios"
-        >
-          <XCircle size={18} />
-        </button>
-      </div>
+      {open && (
+        <div className="absolute mt-1 w-full rounded-xl border border-white/10 bg-[#1e1442] shadow-lg z-20">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => {
+                setValue(opt);
+                setOpen(false);
+              }}
+              className={`block w-full text-left px-4 py-2 text-sm capitalize hover:bg-white/10 ${
+                opt === value ? "bg-[#3b138d]" : ""
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ========= Tarjeta móvil (en lugar de tabla) ========= */
-function QuoteCardMobile({ c, onView, onPrint, onAccept, onReject }) {
-  const subtotal =
-    (c.items || []).reduce((s, it) => s + (it.qty || 0) * (it.price || 0), 0) +
-    (c.otros || 0);
-  const imp = +(subtotal * (c.igv ?? 0)).toFixed(2);
-  const total = subtotal + imp;
-
-  const canAccept = c.estado === "cotizado";
-  const canReject = c.estado === "cotizado" || c.estado === "aprobado";
+/* === Tarjeta móvil === */
+function QuoteCardMobile({ c, onView, onAccept, onReject }) {
+  const canAccept = c.estado === "cotizado"; // solo cotizado puede aprobarse
+  const canReject = c.estado === "cotizado"; // solo cotizado puede rechazarse
   const btn =
     "h-10 rounded-xl grid place-items-center transition disabled:opacity-40 disabled:cursor-not-allowed";
-
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between">
         <div>
           <div className="text-sm text-white/70">
-            #{c.id} · {fmtDate(c.fecha)}
+            #{c.id_cotizacion} · {fmtDate(c.fecha)}
           </div>
-          <div className="font-semibold">{c.servicio}</div>
+          <div className="font-semibold">{c.reserva?.servicio?.nombre}</div>
           <div className="text-sm text-white/80">
-            {c.marca} • {c.modelo}
+            {c.reserva?.vehiculo?.modelo?.marca?.nombre} •{" "}
+            {c.reserva?.vehiculo?.modelo?.nombre} —{" "}
+            {c.reserva?.vehiculo?.placa}
           </div>
         </div>
         <EstadoChip estado={c.estado} />
       </div>
-
       <div className="mt-3 text-sm text-white/80">
-        Total estimado: <b className="text-white">{money(total)}</b>
+        Total estimado: <b className="text-white">{money(c.total)}</b>
       </div>
-
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={() => onView({ ...c, subtotal, imp, total })}
+          onClick={() => onView(c)}
         >
           <Eye size={18} />
         </button>
         <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={onPrint}
-        >
-          <Download size={18} />
-        </button>
-        <button
           className={`${btn} bg-emerald-600/80 hover:bg-emerald-600`}
           disabled={!canAccept}
-          onClick={() => onAccept(c.id)}
+          onClick={() => onAccept(c.id_cotizacion)}
         >
           <CheckCircle2 size={18} />
         </button>
         <button
-          className={`${btn} bg-rose-600/80 hover:bg-rose-600`}
+          className={`${btn} bg-rose-600/80 hover:bg-rose-600 col-span-2`}
           disabled={!canReject}
           onClick={() => onReject(c)}
         >
@@ -402,204 +160,214 @@ function QuoteCardMobile({ c, onView, onPrint, onAccept, onReject }) {
   );
 }
 
-/* ========= Leyenda de estados (abajo) ========= */
-function LegendItem({ label, color, children }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
-        {label}
-      </span>
-      <span className="text-white/80 text-sm">{children}</span>
-    </li>
-  );
-}
-function LegendSection() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h4 className="font-semibold mb-3">Estados</h4>
-      <ul className="grid gap-2">
-        <LegendItem label="Cotizado" color="bg-sky-500/80">
-          El taller envió la propuesta. Puedes aceptarla o solicitar cambios.
-        </LegendItem>
-        <LegendItem label="Aprobado" color="bg-emerald-600/80">
-          Confirmaste la cotización; el taller procede con el servicio.
-        </LegendItem>
-        <LegendItem label="Rechazado" color="bg-rose-600/80">
-          Solicitaste cambios; el taller te enviará una nueva propuesta.
-        </LegendItem>
-        <LegendItem label="Facturado" color="bg-violet-600/80">
-          Se emitió la boleta o factura correspondiente.
-        </LegendItem>
-      </ul>
-    </div>
-  );
-}
-
-/* ========= Página: Cotizaciones (Cliente) ========= */
+/* === Página principal === */
 export default function CotizacionCliente() {
-  const [quotes, setQuotes] = useState([]);
+  const [cotizaciones, setCotizaciones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [toast, setToast] = useState(null); // {type,msg}
-
+  const [toast, setToast] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [current, setCurrent] = useState(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("todas");
 
-  const [current, setCurrent] = useState(null);
-  const [modal, setModal] = useState(null); // "view" | "rechazar"
-
-  const load = async () => {
-    setLoading(true);
-    setErr("");
-    try {
-      const data = await API.listQuotes();
-      setQuotes(data);
-    } catch {
-      setErr("No pudimos cargar tus cotizaciones. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 🚀 Ejemplo manual (visual)
   useEffect(() => {
-    load();
+    setCotizaciones([
+      {
+        id_cotizacion: 1,
+        fecha: "2025-11-11",
+        estado: "cotizado",
+        total: 320,
+        reserva: {
+          servicio: { nombre: "Cambio de aceite y filtro" },
+          vehiculo: {
+            placa: "ABC-123",
+            modelo: { nombre: "Corolla", marca: { nombre: "Toyota" } },
+          },
+        },
+      },
+      {
+        id_cotizacion: 2,
+        fecha: "2025-11-09",
+        estado: "aprobado",
+        total: 480,
+        reserva: {
+          servicio: { nombre: "Frenos completos" },
+          vehiculo: {
+            placa: "XYZ-789",
+            modelo: { nombre: "Rio", marca: { nombre: "Kia" } },
+          },
+        },
+      },
+    ]);
+    setLoading(false);
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return quotes
+    return cotizaciones
       .filter((c) => (status === "todas" ? true : c.estado === status))
-      .filter(
-        (c) =>
-          c.servicio.toLowerCase().includes(q) ||
-          c.marca.toLowerCase().includes(q) ||
-          c.modelo.toLowerCase().includes(q) ||
-          String(c.id).includes(q)
-      )
+      .filter((c) => {
+        const s = c.reserva?.servicio?.nombre?.toLowerCase() || "";
+        const v = c.reserva?.vehiculo?.modelo?.nombre?.toLowerCase() || "";
+        const m = c.reserva?.vehiculo?.modelo?.marca?.nombre?.toLowerCase() || "";
+        return (
+          s.includes(q) ||
+          v.includes(q) ||
+          m.includes(q) ||
+          String(c.id_cotizacion).includes(q)
+        );
+      })
       .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  }, [quotes, query, status]);
+  }, [cotizaciones, query, status]);
 
-  /* acciones */
-  const aceptar = async (id) => {
-    const prev = quotes;
-    setQuotes((p) =>
-      p.map((c) => (c.id === id ? { ...c, estado: "aprobado" } : c))
+  const aceptar = (id) => {
+    setCotizaciones((prev) =>
+      prev.map((c) =>
+        c.id_cotizacion === id
+          ? { ...c, estado: c.estado === "rechazado" ? c.estado : "aprobado" }
+          : c
+      )
     );
-    try {
-      await API.acceptQuote(id);
-      setToast({ type: "ok", msg: "Cotización aceptada. ¡Gracias!" });
-    } catch {
-      setQuotes(prev);
-      setToast({ type: "error", msg: "No se pudo aceptar. Intenta de nuevo." });
-    } finally {
-      setTimeout(() => setToast(null), 1800);
-    }
+    setToast({ type: "ok", msg: "Cotización aprobada ✅" });
+    setTimeout(() => setToast(null), 1800);
   };
 
-  const rechazar = async (id, motivo) => {
-    const prev = quotes;
-    setQuotes((p) =>
-      p.map((c) => (c.id === id ? { ...c, estado: "rechazado", motivo } : c))
+  const rechazar = (id, motivo) => {
+    setCotizaciones((prev) =>
+      prev.map((c) =>
+        c.id_cotizacion === id
+          ? { ...c, estado: c.estado === "aprobado" ? c.estado : "rechazado", motivo }
+          : c
+      )
     );
-    try {
-      await API.requestChanges(id, motivo);
-      setToast({ type: "warn", msg: "Solicitud enviada al taller." });
-    } catch {
-      setQuotes(prev);
-      setToast({ type: "error", msg: "No se pudo enviar tu solicitud." });
-    } finally {
-      setTimeout(() => setToast(null), 1800);
-    }
+    setToast({ type: "warn", msg: "Solicitud enviada al taller 📨" });
+    setTimeout(() => setToast(null), 1800);
   };
-
-  const printOrDownload = () => window.print();
 
   return (
     <div className="space-y-6 text-white">
       {toast && <Toast type={toast.type}>{toast.msg}</Toast>}
 
-      {/* Controles */}
-      <ControlBar
-        query={query}
-        setQuery={setQuery}
-        status={status}
-        setStatus={setStatus}
-        onReload={load}
-      />
+      {/* ====== Barra de control ====== */}
+      <div className="grid grid-cols-12 gap-3 items-stretch">
+        <div className="col-span-12 sm:col-span-6 relative">
+          <input
+            className="w-full h-11 rounded-2xl bg-[#3b138d] text-white placeholder:text-white/70 px-9 pr-9
+                       outline-none border border-white/10 focus:ring-2 focus:ring-white/20"
+            placeholder="Buscar por servicio, marca, modelo o N°"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
 
-      {/* ======== Desktop/Tablet: Tabla ======== */}
+        <div className="col-span-8 sm:col-span-4">
+          <DarkSelect
+            value={status}
+            setValue={setStatus}
+            options={["todas", "cotizado", "aprobado", "rechazado", "facturado"]}
+          />
+        </div>
+
+        <div className="col-span-4 sm:col-span-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full h-11 rounded-2xl bg-white/10 hover:bg-white/15
+                       flex items-center justify-center gap-2"
+          >
+            <RotateCcw size={16} />
+            <span className="hidden sm:inline">Recargar</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ====== Tabla Desktop ====== */}
       <div className="hidden md:block rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-white/5">
             <tr className="[&>th]:py-3 [&>th]:px-4 [&>th]:text-left">
-              <th className="w-20">N°</th>
+              <th>N°</th>
               <th>Servicio</th>
               <th>Vehículo</th>
-              <th className="w-40">Fecha</th>
-              <th className="w-40">Estado</th>
-              <th className="w-56">Acciones</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <SkeletonTableRows rows={4} />
-            ) : err ? (
               <tr>
-                <td colSpan={6} className="py-10">
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="text-white/90">{err}</span>
-                    <button
-                      onClick={load}
-                      className="px-3 h-9 rounded-lg bg-white/10 hover:bg-white/15"
-                    >
-                      Reintentar
-                    </button>
-                  </div>
+                <td colSpan={6} className="text-center py-10 text-white/70">
+                  Cargando…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-white/80">
-                  No hay cotizaciones para mostrar.
+                <td colSpan={6} className="text-center py-10 text-white/70">
+                  No hay cotizaciones.
                 </td>
               </tr>
             ) : (
               filtered.map((c) => {
-                const subtotal =
-                  (c.items || []).reduce(
-                    (s, it) => s + (it.qty || 0) * (it.price || 0),
-                    0
-                  ) + (c.otros || 0);
-                const imp = +(subtotal * (c.igv ?? 0)).toFixed(2);
-                const total = subtotal + imp;
-
+                const canAccept = c.estado === "cotizado";
+                const canReject = c.estado === "cotizado";
                 return (
                   <tr
-                    key={c.id}
-                    className="border-t border-white/10 hover:bg-white/5 transition-colors"
+                    key={c.id_cotizacion}
+                    className="border-t border-white/10 hover:bg-white/5 transition"
                   >
-                    <td className="py-3 px-4">{c.id}</td>
-                    <td className="px-4">{c.servicio}</td>
-                    <td className="px-4">
-                      {c.marca} • {c.modelo}
+                    <td className="px-4 py-2">{c.id_cotizacion}</td>
+                    <td className="px-4 py-2">
+                      {c.reserva?.servicio?.nombre || "—"}
                     </td>
-                    <td className="px-4">{fmtDate(c.fecha)}</td>
-                    <td className="px-4">
+                    <td className="px-4 py-2">
+                      {c.reserva?.vehiculo?.modelo?.marca?.nombre || "—"} •{" "}
+                      {c.reserva?.vehiculo?.modelo?.nombre || "—"} —{" "}
+                      {c.reserva?.vehiculo?.placa || "—"}
+                    </td>
+                    <td className="px-4 py-2">{fmtDate(c.fecha)}</td>
+                    <td className="px-4 py-2">
                       <EstadoChip estado={c.estado} />
                     </td>
-                    <td className="px-4">
-                      <ActionCell
-                        quote={c}
-                        onView={() => {
-                          setCurrent({ ...c, subtotal, imp, total });
+                    <td className="px-4 py-2 flex gap-2">
+                      <button
+                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15"
+                        onClick={() => {
+                          setCurrent(c);
                           setModal("view");
                         }}
-                        onPrint={printOrDownload}
-                        onAccept={() => aceptar(c.id)}
-                        onReject={() => {
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        className="px-3 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-600"
+                        disabled={!canAccept}
+                        onClick={() => aceptar(c.id_cotizacion)}
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+                      <button
+                        className="px-3 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-600"
+                        disabled={!canReject}
+                        onClick={() => {
                           setCurrent(c);
                           setModal("rechazar");
                         }}
-                      />
+                      >
+                        <XCircle size={16} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -609,137 +377,76 @@ export default function CotizacionCliente() {
         </table>
       </div>
 
-      {/* ======== Móvil: Listado de Tarjetas ======== */}
+      {/* ====== Móvil ====== */}
       <div className="md:hidden space-y-3">
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80">
-            Cargando…
-          </div>
-        ) : err ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="flex items-center justify-between">
-              <span>{err}</span>
-              <button
-                onClick={load}
-                className="px-3 h-9 rounded-lg bg-white/10 hover:bg-white/15"
-              >
-                Reintentar
-              </button>
-            </div>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80">
-            No hay cotizaciones para mostrar.
-          </div>
-        ) : (
-          filtered.map((c) => (
-            <QuoteCardMobile
-              key={c.id}
-              c={c}
-              onView={(data) => {
-                setCurrent(data);
-                setModal("view");
-              }}
-              onPrint={printOrDownload}
-              onAccept={aceptar}
-              onReject={(row) => {
-                setCurrent(row);
-                setModal("rechazar");
-              }}
-            />
-          ))
-        )}
+        {filtered.map((c) => (
+          <QuoteCardMobile
+            key={c.id_cotizacion}
+            c={c}
+            onView={(data) => {
+              setCurrent(data);
+              setModal("view");
+            }}
+            onAccept={aceptar}
+            onReject={(row) => {
+              setCurrent(row);
+              setModal("rechazar");
+            }}
+          />
+        ))}
       </div>
 
-      {/* Leyenda de estados (abajo) */}
-      <LegendSection />
-
-      {/* Modal VER */}
+      {/* ====== Modal VER ====== */}
       <Modal
         open={modal === "view" && current}
         onClose={() => setModal(null)}
-        title={`Cotización #${current?.id}`}
+        title={`Cotización #${current?.id_cotizacion}`}
         footer={
           current && (
-            <div className="flex items-center justify-between">
+            <div className="flex justify-between items-center">
               <div className="text-sm">
-                Subtotal: <b>{money(current.subtotal)}</b> · IGV(18%):{" "}
-                <b>{money(current.imp)}</b> · Total:{" "}
-                <b>{money(current.total)}</b>
+                Total: <b>{money(current.total)}</b>
               </div>
-              <div className="flex gap-2">
-                <button
-                  className="px-4 h-10 rounded-lg bg-white/10 hover:bg-white/15"
-                  onClick={window.print}
-                >
-                  <Printer size={16} className="inline -mt-0.5 mr-1" />
-                  Imprimir / Descargar
-                </button>
-                <button
-                  className="px-4 h-10 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 disabled:opacity-40"
-                  disabled={current.estado !== "cotizado"}
-                  onClick={() => {
-                    aceptar(current.id);
-                    setModal(null);
-                  }}
-                >
-                  Aceptar
-                </button>
-              </div>
+              <button
+                className="px-4 h-10 rounded-lg bg-emerald-600/80 hover:bg-emerald-600"
+                disabled={current.estado !== "cotizado"}
+                onClick={() => {
+                  aceptar(current.id_cotizacion);
+                  setModal(null);
+                }}
+              >
+                Aceptar
+              </button>
             </div>
           )
         }
       >
         {current && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <Info k="Servicio" v={current.servicio} />
-              <Info k="Fecha" v={fmtDate(current.fecha)} />
-              <Info k="Vehículo" v={`${current.marca} • ${current.modelo}`} />
-              <Info k="Estado" v={<EstadoChip estado={current.estado} />} />
-            </div>
-
-            <div className="rounded-xl border border-white/10 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-white/5">
-                  <tr className="[&>th]:py-2 [&>th]:px-3 [&>th]:text-left">
-                    <th>Concepto</th>
-                    <th className="w-24">Cant.</th>
-                    <th className="w-28">Precio</th>
-                    <th className="w-32">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {current.items.map((it, i) => (
-                    <tr key={i} className="border-t border-white/10">
-                      <td className="py-2 px-3">{it.desc}</td>
-                      <td className="px-3">{it.qty}</td>
-                      <td className="px-3">{money(it.price)}</td>
-                      <td className="px-3">{money(it.qty * it.price)}</td>
-                    </tr>
-                  ))}
-                  {current.otros ? (
-                    <tr className="border-t border-white/10">
-                      <td className="py-2 px-3">Otros</td>
-                      <td className="px-3">—</td>
-                      <td className="px-3">—</td>
-                      <td className="px-3">{money(current.otros)}</td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-
-            <p className="text-white/90">{current.notas}</p>
+          <div className="space-y-2 text-sm">
+            <p>
+              <b>Servicio:</b> {current.reserva?.servicio?.nombre || "—"}
+            </p>
+            <p>
+              <b>Vehículo:</b>{" "}
+              {current.reserva?.vehiculo?.modelo?.marca?.nombre}{" "}
+              {current.reserva?.vehiculo?.modelo?.nombre} (
+              {current.reserva?.vehiculo?.placa})
+            </p>
+            <p>
+              <b>Fecha:</b> {fmtDate(current.fecha)}
+            </p>
+            <p>
+              <b>Estado:</b> <EstadoChip estado={current.estado} />
+            </p>
           </div>
         )}
       </Modal>
 
-      {/* Modal RECHAZAR / SOLICITAR CAMBIOS */}
+      {/* ====== Modal RECHAZAR ====== */}
       <Modal
         open={modal === "rechazar" && current}
         onClose={() => setModal(null)}
-        title={`Solicitar cambios — #${current?.id}`}
+        title={`Solicitar cambios – #${current?.id_cotizacion}`}
         footer={
           <div className="flex justify-end gap-2">
             <button
@@ -751,9 +458,9 @@ export default function CotizacionCliente() {
             <button
               className="px-4 h-10 rounded-lg bg-rose-600/80 hover:bg-rose-600"
               onClick={() => {
-                const txt =
+                const motivo =
                   document.getElementById("motivo-rechazo")?.value || "";
-                rechazar(current.id, txt);
+                rechazar(current.id_cotizacion, motivo);
                 setModal(null);
               }}
             >
@@ -763,8 +470,7 @@ export default function CotizacionCliente() {
         }
       >
         <p className="text-sm text-white/90 mb-3">
-          Cuéntanos qué te gustaría cambiar (marca de repuestos, alcance del
-          servicio, presupuesto, etc.).
+          Indica qué parte de la cotización deseas modificar o revisar.
         </p>
         <textarea
           id="motivo-rechazo"
@@ -775,3 +481,4 @@ export default function CotizacionCliente() {
     </div>
   );
 }
+
