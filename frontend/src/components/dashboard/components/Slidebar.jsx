@@ -5,6 +5,7 @@ import {
   FileText,
   Clock,
   Gauge,
+  ClipboardCheck,
   Settings,
   ChevronRight,
   X,
@@ -80,10 +81,11 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
         <nav className="p-3 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3a3370] scrollbar-track-transparent">
           <Item to="/dashboard/cliente" icon={Home} label="Inicio" onClick={onClose} />
           <Item to="/dashboard/cliente/vehiculos" icon={Gauge} label="Mis vehículos" onClick={onClose} />
-          <Item to="/dashboard/cliente/estado" icon={Car} label="Estado del vehículo" onClick={onClose} />
-          <Item to="/dashboard/cliente/reservar" icon={CalendarCheck2} label="Reservar Servicio" onClick={onClose} />
+           <Item to="/dashboard/cliente/reservar" icon={CalendarCheck2} label="Reservar Servicio" onClick={onClose} />
+          <Item to="/dashboard/cliente/estadoreserva" icon={ClipboardCheck} label="Estado de reserva" onClick={onClose} />
           <Item to="/dashboard/cliente/cotizacion" icon={FileText} label="Cotización" onClick={onClose} />
-          <Item to="/dashboard/cliente/historial" icon={Clock} label="Historial de servicios" onClick={onClose} />
+                    <Item to="/dashboard/cliente/estado" icon={Car} label="Estado del vehículo" onClick={onClose} />
+          <Item to="/dashboard/cliente/historial" icon={Clock} label="Historial" onClick={onClose} />
           <Item to="/dashboard/cliente/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
         </nav>
 
