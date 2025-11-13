@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
-import { Car, Wrench, Clock, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Car,
+  Wrench,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Info,
+} from "lucide-react";
 
 export default function EstadoVehiculo() {
   const [vehiculos, setVehiculos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Simular API del backend (usa tu base real después)
   useEffect(() => {
     setLoading(true);
     setTimeout(() => {
@@ -61,6 +68,18 @@ export default function EstadoVehiculo() {
     cancelado: XCircle,
   };
 
+  // ➜ Explicación de cada estado
+  const estadoDescripcion = {
+    pendiente:
+      "Tu solicitud ha sido recibida. El taller está verificando disponibilidad y asignando un mecánico.",
+    en_proceso:
+      "Un mecánico ya está trabajando activamente en tu vehículo. Puedes seguir el progreso en esta tarjeta.",
+    finalizado:
+      "El servicio ha sido completado. Tu vehículo está listo para entrega.",
+    cancelado:
+      "El servicio ha sido cancelado. Si necesitas más información, comunícate con el taller.",
+  };
+
   return (
     <div className="text-white space-y-6">
       <h1 className="text-2xl font-semibold">Estado de mis vehículos</h1>
@@ -84,6 +103,7 @@ export default function EstadoVehiculo() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {vehiculos.map((v) => {
             const Icono = iconoEstado[v.estado] || Car;
+
             return (
               <div
                 key={v.id_vehiculo}
@@ -102,6 +122,19 @@ export default function EstadoVehiculo() {
 
                 {/* Descripción */}
                 <p className="text-sm text-white/80 mb-3">{v.descripcion}</p>
+
+                {/* Estado Explicado */}
+                <div className="bg-white/5 border border-white/10 p-3 rounded-xl mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Info className="text-white/70" size={16} />
+                    <span className="text-xs text-white/60 uppercase tracking-wide">
+                      Estado actual: {v.estado.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/70 leading-5">
+                    {estadoDescripcion[v.estado]}
+                  </p>
+                </div>
 
                 {/* Barra de progreso */}
                 <div className="w-full h-2 bg-white/10 rounded-full mb-3 overflow-hidden">
@@ -135,4 +168,3 @@ export default function EstadoVehiculo() {
     </div>
   );
 }
-
