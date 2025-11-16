@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "public"."Reservas" ALTER COLUMN "hora_inicio" SET DATA TYPE TEXT,
+ALTER COLUMN "hora_fin" SET DATA TYPE TEXT;

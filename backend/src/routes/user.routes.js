@@ -7,7 +7,6 @@ import {
   getUserById,
   updateUser,
   deleteUser,
-  syncClientes,
 } from "../controllers/user.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 
@@ -18,9 +17,6 @@ router.post("/register", registerUser);
 
 // Login de usuario
 router.post("/login", loginUser);
-
-// 🆕 Sincronizar clientes (crear entradas faltantes en tabla Clientes)
-router.post("/sync-clientes", verifyToken, syncClientes);
 
 // Obtener todos los usuarios (protegido con JWT)
 router.get("/users", verifyToken, getUsers);

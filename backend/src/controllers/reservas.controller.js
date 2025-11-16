@@ -1,0 +1,221 @@
+import { PrismaClient } from "@prisma/client";
+import jwt from "jsonwebtoken";
+import { config } from "../config/env.js";
+import dayjs from "dayjs";
+
+const prisma = new PrismaClient();
+
+/**
+ * Obtener todas las reservas
+ */
+export const getReservas = async (req, res) => {
+  try {
+    const reservas = await prisma.reservas.findMany({
+      include: {
+        cliente: { include: { usuario: true } },
+        vehiculo: { include: { modelo: true } },
+        servicio: true,
+      },
+      orderBy: { fecha: "desc" },
+    });
+    res.json(reservas);
+  } catch (error) {
+    console.error("Error al obtener reservas:", error);
+    res.status(500).json({ error: "Error al obtener reservas" });
+  }
+};
+
+/**
+ * Obtener reserva por ID
+ */
+export const getReservaById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const reserva = await prisma.reservas.findUnique({
+      where: { id_reserva: Number(id) },
+      include: {
+        cliente: { include: { usuario: true } },
+        vehiculo: { include: { modelo: true } },
+        servicio: true,
+      },
+    });
+
+    if (!reserva)
+      return res.status(404).json({ error: "Reserva no encontrada" });
+
+    res.json(reserva);
+  } catch (error) {
+    console.error("Error al obtener reserva:", error);
+    res.status(500).json({ error: "Error al obtener reserva" });
+  }
+};
+
+/**
+/**
+ * Crear nueva reserva
+ */
+export const createReserva = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader)
+      return res.status(401).json({ error: "Token no proporcionado" });
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, config.jwtSecret);
+
+    const cliente = await prisma.clientes.findUnique({
+      where: { id_usuario: decoded.id_usuario },
+    });
+
+    if (!cliente)
+      return res.status(404).json({ error: "Cliente no encontrado" });
+
+    const { id_vehiculo, id_servicio, fecha, hora_inicio } = req.body;
+
+    if (!id_vehiculo || !id_servicio || !fecha || !hora_inicio)
+      return res.status(400).json({ error: "Faltan datos obligatorios" });
+
+    // Obtener duración en minutos
+    const servicio = await prisma.servicios.findUnique({
+      where: { id_servicio: Number(id_servicio) },
+      select: { duracion: true },
+    });
+
+    if (!servicio)
+      return res.status(404).json({ error: "Servicio no encontrado" });
+
+    // Normalizar fecha DD/MM/YYYY a YYYY-MM-DD (si es necesario)
+    let fechaISO = fecha;
+    if (fecha.includes("/")) {
+      const [dia, mes, anio] = fecha.split("/");
+      fechaISO = `${anio}-${mes}-${dia}`;
+    }
+
+    // Convertir hora_inicio (ej: "15:30") en minutos totales
+    const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
+    const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
+
+    // Calcular hora_fin en formato HH:mm
+    const horaFinHoras = Math.floor(minutosTotales / 60);
+    const horaFinMinutos = minutosTotales % 60;
+
+    const hora_fin = `${String(horaFinHoras).padStart(2, "0")}:${String(
+      horaFinMinutos
+    ).padStart(2, "0")}`;
+
+    // Construir fecha sin que se convierta a UTC
+    const [anio, mes, dia] = fechaISO.split("-").map(Number);
+    const fechaDate = new Date(anio, mes - 1, dia, 0, 0, 0);
+
+    // Validar conflictos por string de horas
+    const existeConflicto = await prisma.reservas.findFirst({
+      where: {
+        fecha: fechaDate,
+        AND: [
+          { hora_inicio: { lt: hora_fin } },
+          { hora_fin: { gt: hora_inicio } },
+        ],
+      },
+    });
+
+    if (existeConflicto)
+      return res
+        .status(409)
+        .json({ error: "El horario seleccionado no está disponible" });
+
+    // Crear reserva
+    const nuevaReserva = await prisma.reservas.create({
+      data: {
+        id_cliente: cliente.id_cliente,
+        id_vehiculo: Number(id_vehiculo),
+        id_servicio: Number(id_servicio),
+        fecha: fechaDate,
+        hora_inicio: hora_inicio, // string
+        hora_fin: hora_fin, // string
+        estado: "PENDIENTE",
+      },
+      include: {
+        servicio: true,
+        vehiculo: true,
+        cliente: { include: { usuario: true } },
+      },
+    });
+
+    res.status(201).json({
+      message: "Reserva creada exitosamente",
+      reserva: nuevaReserva,
+    });
+  } catch (error) {
+    console.error("Error al crear reserva:", error);
+    res.status(500).json({ error: "Error al crear reserva" });
+  }
+};
+
+/**
+ * Actualizar estado
+ */
+export const updateReserva = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const reservaActualizada = await prisma.reservas.update({
+      where: { id_reserva: Number(id) },
+      data: { estado },
+    });
+
+    res.json({
+      message: "Estado actualizado",
+      reserva: reservaActualizada,
+    });
+  } catch (error) {
+    console.error("Error al actualizar reserva:", error);
+    res.status(500).json({ error: "Error al actualizar la reserva" });
+  }
+};
+
+/**
+ * Eliminar reserva
+ */
+export const deleteReserva = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.reservas.delete({
+      where: { id_reserva: Number(id) },
+    });
+
+    res.json({ message: "Reserva eliminada correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar reserva:", error);
+    res.status(500).json({ error: "Error al eliminar la reserva" });
+  }
+};
+/**
+ * Obtener horas ocupadas por fecha
+ * GET /mecanica/reservas/horas?fecha=YYYY-MM-DD
+ */
+export const getHorasOcupadas = async (req, res) => {
+  try {
+    const { fecha } = req.query;
+
+    if (!fecha) return res.status(400).json({ error: "La fecha es requerida" });
+
+    // Convertir YYYY-MM-DD → Date
+    const [anio, mes, dia] = fecha.split("-").map(Number);
+    const fechaDate = new Date(anio, mes - 1, dia, 0, 0, 0);
+
+    // Buscar reservas del día
+    const reservas = await prisma.reservas.findMany({
+      where: { fecha: fechaDate },
+      select: { hora_inicio: true, hora_fin: true },
+    });
+
+    res.json({
+      horasOcupadas: reservas,
+    });
+  } catch (error) {
+    console.error("Error al obtener horas ocupadas:", error);
+    res.status(500).json({ error: "Error al obtener horas ocupadas" });
+  }
+};

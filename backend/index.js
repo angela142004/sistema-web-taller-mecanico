@@ -4,47 +4,50 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
+// Rutas y controladores
 import userRoutes from "./src/routes/user.routes.js";
 import vehiculosRoutes from "./src/routes/vehiculos.routes.js";
 import marcasRoutes from "./src/routes/marcas.routes.js";
 import modelosRoutes from "./src/routes/modelos.routes.js";
-import serviciosRoutes from "./src/routes/servicios.routes.js"; // <-- nueva importación
-import { getServicios } from "./src/controllers/servicios.controller.js"; // <-- NUEVO: import directo para fallback
+import serviciosRoutes from "./src/routes/servicios.routes.js";
+import reservasRoutes from "./src/routes/reservas.routes.js"; // ✅ nuevo import
+import { getServicios } from "./src/controllers/servicios.controller.js";
 
-dotenv.config(); // lee las variables de entorno desde .env
+dotenv.config();
 
 const app = express();
 
-// Configuración de CORS
+// === CORS CONFIG ===
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173", // tu frontend en React
+  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
 app.use(cors(corsOptions));
 
-// Middlewares
+// === MIDDLEWARES ===
 app.use(morgan("dev"));
 app.use(express.json());
 
-// Middleware de logging para todas las rutas bajo /mecanica
+// Log general
 app.use("/mecanica", (req, res, next) => {
   console.log(`[API LOG] ${req.method} ${req.originalUrl} - from ${req.ip}`);
   next();
 });
 
-// Rutas
+// === RUTAS ===
 app.use("/mecanica", userRoutes);
 app.use("/mecanica/vehiculos", vehiculosRoutes);
 app.use("/mecanica/marcas", marcasRoutes);
 app.use("/mecanica/modelos", modelosRoutes);
-app.use("/mecanica/servicios", serviciosRoutes); // <-- montar rutas de servicios
+app.use("/mecanica/servicios", serviciosRoutes);
+app.use("/mecanica/reservas", reservasRoutes); // ✅ NUEVO: rutas de reservas
 
-// --- NUEVO: ruta fallback directa para GET /mecanica/servicios (diagnóstico / garantía) ---
+// Fallback diagnóstico para servicios
 app.get("/mecanica/servicios", getServicios);
 
-// Endpoint diagnóstico
+// === ENDPOINT DE PRUEBA /mecanica ===
 app.get("/mecanica", (req, res) => {
   res.json({
     ok: true,
@@ -52,14 +55,15 @@ app.get("/mecanica", (req, res) => {
     endpoints: [
       "/mecanica/marcas (GET)",
       "/mecanica/modelos?marcaId=ID (GET)",
-      "/mecanica/vehiculos (GET, POST, ...)",
+      "/mecanica/vehiculos (GET, POST, PUT, DELETE)",
       "/mecanica/servicios (GET)",
+      "/mecanica/reservas (GET, POST, PUT, DELETE)",
       "/mecanica/login (POST)",
     ],
   });
 });
 
-// Función segura para listar rutas
+// === FUNCIÓN PARA MOSTRAR RUTAS REGISTRADAS ===
 function listRoutes() {
   console.log("=== Registered routes ===");
 
@@ -103,13 +107,13 @@ function listRoutes() {
   console.log("=== End routes ===");
 }
 
-// Puerto
+// === PUERTO ===
 const PORT = process.env.PORT || 4001;
 
-// Iniciar servidor
+// === SERVIDOR ===
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-  listRoutes(); // ✅ Ahora se ejecuta después de que el servidor esté listo
+  listRoutes();
 });
 
 export default app;

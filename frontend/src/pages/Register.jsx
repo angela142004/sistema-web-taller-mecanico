@@ -92,9 +92,15 @@ const Register = () => {
         return;
       }
 
-      // Guardar token y rol en localStorage
+      // Guardar datos importantes en localStorage
       localStorage.setItem("token", data.token);
       localStorage.setItem("rol", data.user.rol);
+      localStorage.setItem("id_usuario", data.user.id_usuario);
+
+      // Si es cliente, guardar también su id_cliente
+      if (data.user.rol === "cliente" && data.user.id_cliente) {
+        localStorage.setItem("id_cliente", data.user.id_cliente);
+      }
 
       // Redirigir según rol
       if (data.user.rol === "cliente") {

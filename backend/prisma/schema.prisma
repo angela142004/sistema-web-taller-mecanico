@@ -148,9 +148,10 @@ model Reservas {
   id_cliente  Int
   id_vehiculo Int
   id_servicio Int
-  fecha       DateTime // Fecha de atención seleccionada por el cliente
-  hora_inicio DateTime // Hora exacta de inicio del servicio
-  hora_fin    DateTime // Hora estimada de término según el tipo de servicio
+  fecha       DateTime @db.Date
+  hora_inicio String
+  hora_fin    String
+
   estado      EstadoAtencion @default(PENDIENTE)
 
   cliente    Clientes              @relation(fields: [id_cliente], references: [id_cliente])
