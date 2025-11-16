@@ -84,44 +84,41 @@ export const createReserva = async (req, res) => {
     if (!servicio)
       return res.status(404).json({ error: "Servicio no encontrado" });
 
-    // Normalizar fecha DD/MM/YYYY a YYYY-MM-DD (si es necesario)
+    // Normalizar fecha DD/MM/YYYY a YYYY-MM-DD
     let fechaISO = fecha;
     if (fecha.includes("/")) {
       const [dia, mes, anio] = fecha.split("/");
       fechaISO = `${anio}-${mes}-${dia}`;
     }
 
-    // Convertir hora_inicio (ej: "15:30") en minutos totales
+    // Convertir hora_inicio en minutos totales
     const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
     const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
 
-    // Calcular hora_fin en formato HH:mm
+    // Calcular hora_fin
     const horaFinHoras = Math.floor(minutosTotales / 60);
     const horaFinMinutos = minutosTotales % 60;
-
     const hora_fin = `${String(horaFinHoras).padStart(2, "0")}:${String(
       horaFinMinutos
     ).padStart(2, "0")}`;
 
-    // Construir fecha sin que se convierta a UTC
+    // Construir fecha sin conversión a UTC
     const [anio, mes, dia] = fechaISO.split("-").map(Number);
     const fechaDate = new Date(anio, mes - 1, dia, 0, 0, 0);
 
-    // Validar conflictos por string de horas
-    const existeConflicto = await prisma.reservas.findFirst({
+    // Contar cuántas reservas del mismo servicio ya existen en ese horario
+    const reservasSimultaneas = await prisma.reservas.count({
       where: {
+        id_servicio: Number(id_servicio),
         fecha: fechaDate,
-        AND: [
-          { hora_inicio: { lt: hora_fin } },
-          { hora_fin: { gt: hora_inicio } },
-        ],
+        hora_inicio: hora_inicio,
       },
     });
 
-    if (existeConflicto)
+    if (reservasSimultaneas >= 3)
       return res
         .status(409)
-        .json({ error: "El horario seleccionado no está disponible" });
+        .json({ error: "No hay disponibilidad para este servicio a esa hora" });
 
     // Crear reserva
     const nuevaReserva = await prisma.reservas.create({
@@ -130,8 +127,8 @@ export const createReserva = async (req, res) => {
         id_vehiculo: Number(id_vehiculo),
         id_servicio: Number(id_servicio),
         fecha: fechaDate,
-        hora_inicio: hora_inicio, // string
-        hora_fin: hora_fin, // string
+        hora_inicio,
+        hora_fin,
         estado: "PENDIENTE",
       },
       include: {
@@ -217,5 +214,60 @@ export const getHorasOcupadas = async (req, res) => {
   } catch (error) {
     console.error("Error al obtener horas ocupadas:", error);
     res.status(500).json({ error: "Error al obtener horas ocupadas" });
+  }
+};
+/**
+ /**
+ * Obtener reservas del cliente autenticado
+ * GET /mecanica/reservas/cliente
+ */
+export const getReservasCliente = async (req, res) => {
+  try {
+    // 1️⃣ Verificar que venga el token
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Token no proporcionado" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    // 2️⃣ Decodificar token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.jwtSecret);
+    } catch (err) {
+      return res.status(401).json({ error: "Token inválido" });
+    }
+
+    // 3️⃣ Obtener el cliente asociado al usuario
+    const cliente = await prisma.clientes.findUnique({
+      where: { id_usuario: decoded.id_usuario },
+    });
+
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    // 4️⃣ Obtener solo las reservas, con lo mínimo necesario para el dashboard
+    const reservas = await prisma.reservas.findMany({
+      where: { id_cliente: cliente.id_cliente },
+      include: {
+        vehiculo: {
+          include: {
+            modelo: {
+              include: { marca: true }, // para mostrar marca y modelo
+            },
+          },
+        },
+        servicio: true, // para mostrar nombre del servicio
+      },
+      orderBy: { fecha: "desc" },
+    });
+
+    // 5️⃣ Devolver reservas
+    res.json(reservas);
+  } catch (error) {
+    console.error("Error al obtener reservas del cliente:", error);
+    res.status(500).json({ error: "Error al obtener reservas del cliente" });
   }
 };

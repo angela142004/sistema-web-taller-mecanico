@@ -7,15 +7,16 @@ import {
   updateReserva,
   deleteReserva,
   getHorasOcupadas,
+  getReservasCliente,
 } from "../controllers/reservas.controller.js";
 
 const router = Router();
 
 router.get("/", getReservas);
+router.get("/cliente", getReservasCliente);
 router.get("/:id", getReservaById);
 router.post("/", createReserva);
 router.put("/:id", updateReserva);
 router.delete("/:id", deleteReserva);
 router.get("/horas", getHorasOcupadas);
-
 export default router;
