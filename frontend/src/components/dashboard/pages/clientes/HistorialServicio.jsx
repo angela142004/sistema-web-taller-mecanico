@@ -28,11 +28,12 @@ const MOCK = [
     costo: 380,
     mecanico: { usuario: { nombre: "Carlos Ruiz" } },
     reserva: {
-      estado: "CONFIRMADA",
+      estado: "FINALIZADO",
       servicio: { nombre: "Servicio de frenos" },
       vehiculo: {
         modelo: { nombre: "Yaris", marca: { nombre: "Toyota" } },
       },
+      cotizacion: { total: 380, estado: "aprobado" },
     },
   },
   {
@@ -42,11 +43,12 @@ const MOCK = [
     costo: 180,
     mecanico: { usuario: { nombre: "Luis Mendoza" } },
     reserva: {
-      estado: "CONFIRMADA",
+      estado: "FINALIZADO",
       servicio: { nombre: "Mantenimiento preventivo" },
       vehiculo: {
         modelo: { nombre: "Accent", marca: { nombre: "Hyundai" } },
       },
+      cotizacion: { total: 180, estado: "aprobado" },
     },
   },
   {
@@ -56,11 +58,12 @@ const MOCK = [
     costo: 250,
     mecanico: { usuario: { nombre: "Ernesto Díaz" } },
     reserva: {
-      estado: "PENDIENTE",
+      estado: "FINALIZADO", // Cambié el estado para mostrar solo los finalizados
       servicio: { nombre: "Revisión eléctrica" },
       vehiculo: {
         modelo: { nombre: "Rio", marca: { nombre: "Kia" } },
       },
+      cotizacion: { total: 250, estado: "aprobado" },
     },
   },
 ];
@@ -71,11 +74,13 @@ function ChipEstado({ estado }) {
     PENDIENTE: "bg-sky-500/80",
     CONFIRMADA: "bg-indigo-600/80",
     CANCELADA: "bg-rose-600/80",
+    FINALIZADO: "bg-green-500/80",
   };
   const label = {
     PENDIENTE: "Pendiente",
     CONFIRMADA: "Confirmada",
     CANCELADA: "Cancelada",
+    FINALIZADO: "Finalizado",
   }[estado];
   return (
     <span
@@ -248,7 +253,7 @@ function Modal({ open, onClose, data }) {
             onClick={() => window.print()}
             className="h-10 px-4 rounded-xl bg-[#3b138d] hover:bg-[#4316a1] flex items-center gap-2"
           >
-            <Printer size={16} /> Imprimir / Descargar
+            <Printer size={16} /> Imprimir / Descargar PDF
           </button>
           <button
             onClick={onClose}
@@ -311,6 +316,7 @@ export default function HistorialCliente() {
           x.toLowerCase().includes(q)
         )
       )
+      .filter((r) => r.reserva?.estado === "FINALIZADO") // Mostrar solo los finalizados
       .sort((a, b) =>
         sortBy === "costo"
           ? b.costo - a.costo
@@ -330,7 +336,7 @@ export default function HistorialCliente() {
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80">
-          No hay registros de historial.
+          No hay servicios finalizados aún.
         </div>
       ) : (
         <div className="grid gap-3">

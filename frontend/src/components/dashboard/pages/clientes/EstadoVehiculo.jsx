@@ -1,138 +1,254 @@
 import { useEffect, useState } from "react";
-import { Car, Wrench, Clock, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Car,
+  Wrench,
+  UserCog,
+  Info,
+  CheckCircle,
+  Loader2,
+  XCircle,
+  Clock,
+  InfoIcon,
+  ChevronDown,
+  X,
+} from "lucide-react";
 
 export default function EstadoVehiculo() {
-  const [vehiculos, setVehiculos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const token = localStorage.getItem("token") || "";
+
+  const [reservas, setReservas] = useState([]);
   const [error, setError] = useState("");
 
-  // Simular API del backend (usa tu base real después)
+  // Control del modal con los estados del vehículo
+  const [showEstados, setShowEstados] = useState(false);
+
+  // Estados del mecánico (lo que se mostrará dentro del modal)
+  const estadosVehiculoInfo = [
+    {
+      title: "Pendiente",
+      color: "text-yellow-300",
+      desc: "El mecánico aún no ha iniciado el trabajo en tu vehículo.",
+    },
+    {
+      title: "En proceso",
+      color: "text-blue-300",
+      desc: "El mecánico está trabajando activamente en tu vehículo.",
+    },
+    {
+      title: "Finalizado",
+      color: "text-green-300",
+      desc: "El servicio del vehículo ya fue completado.",
+    },
+    {
+      title: "Cancelado",
+      color: "text-red-400",
+      desc: "El servicio fue suspendido por el mecánico o el taller.",
+    },
+  ];
+
+  // EJEMPLOS (respetando 100% tu base de datos)
+  const ejemplos = [
+    {
+      id_reserva: 3001,
+      fecha: "2025-11-20T10:00:00.000Z",
+      estado: "CONFIRMADA",
+      vehiculo: {
+        placa: "GFT-221",
+        modelo: { nombre: "Corolla", marca: { nombre: "Toyota" } },
+      },
+      servicio: { nombre: "Cambio de aceite" },
+      cotizacion: { total: 150, estado: "aprobado" },
+      asignacion: [
+        { estado: "pendiente", mecanico: { usuario: { nombre: "Carlos Huamán" } } },
+      ],
+    },
+    {
+      id_reserva: 3002,
+      fecha: "2025-11-22T09:00:00.000Z",
+      estado: "CONFIRMADA",
+      vehiculo: {
+        placa: "XYZ-909",
+        modelo: { nombre: "Civic", marca: { nombre: "Honda" } },
+      },
+      servicio: { nombre: "Mantenimiento general" },
+      cotizacion: { total: 380, estado: "aprobado" },
+      asignacion: [
+        { estado: "en_proceso", mecanico: { usuario: { nombre: "Luis Ríos" } } },
+      ],
+    },
+    {
+      id_reserva: 3003,
+      fecha: "2025-11-25T08:00:00.000Z",
+      estado: "CONFIRMADA",
+      vehiculo: {
+        placa: "OPQ-556",
+        modelo: { nombre: "Hilux", marca: { nombre: "Toyota" } },
+      },
+      servicio: { nombre: "Revisión de frenos" },
+      cotizacion: { total: 350, estado: "aprobado" },
+      asignacion: [
+        { estado: "finalizado", mecanico: { usuario: { nombre: "Pedro Álvarez" } } },
+      ],
+    },
+  ];
+
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setVehiculos([
-        {
-          id_vehiculo: 1,
-          placa: "ABC-123",
-          modelo: "Toyota Corolla 2020",
-          estado: "en_proceso",
-          mecanico: "Carlos Ruiz",
-          avance: 65,
-          descripcion: "Revisión general y cambio de pastillas de freno",
-          ultimaActualizacion: "2025-11-12 10:25 AM",
-        },
-        {
-          id_vehiculo: 2,
-          placa: "XYZ-987",
-          modelo: "Kia Rio 2018",
-          estado: "finalizado",
-          mecanico: "Luis Fernández",
-          avance: 100,
-          descripcion: "Cambio de aceite completado",
-          ultimaActualizacion: "2025-11-11 05:40 PM",
-        },
-        {
-          id_vehiculo: 3,
-          placa: "JPO-456",
-          modelo: "Hyundai Accent 2021",
-          estado: "pendiente",
-          mecanico: "—",
-          avance: 10,
-          descripcion: "Esperando confirmación del cliente",
-          ultimaActualizacion: "2025-11-10 09:10 AM",
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    cargarEstado();
   }, []);
 
-  // Colores dinámicos
-  const estadoColor = {
-    pendiente: "bg-yellow-500/80",
-    en_proceso: "bg-blue-500/80",
-    finalizado: "bg-emerald-600/80",
-    cancelado: "bg-rose-600/80",
+  // Cargar estado real del backend
+  const cargarEstado = async () => {
+    try {
+      const res = await fetch(`${API}/mecanica/vehiculo/estado`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) {
+        setError("No se pudo cargar el estado del vehículo (mostrando ejemplos)");
+        setReservas(ejemplos);
+        return;
+      }
+
+      const data = await res.json();
+
+      // Solo mostrar CONFIRMADAS + cotización aprobada
+      const filtrados = data.filter(
+        (r) => r.estado === "CONFIRMADA" && r.cotizacion?.estado === "aprobado"
+      );
+
+      setReservas(filtrados.length ? filtrados : ejemplos);
+    } catch {
+      setError("No se pudo cargar el estado del vehículo (mostrando ejemplos)");
+      setReservas(ejemplos);
+    }
+  };
+
+  // Colores e iconos según estado del mecánico
+  const colorEstado = {
+    pendiente: "text-yellow-300",
+    en_proceso: "text-blue-300",
+    finalizado: "text-green-300",
+    cancelado: "text-red-400",
   };
 
   const iconoEstado = {
-    pendiente: Clock,
-    en_proceso: Wrench,
-    finalizado: CheckCircle2,
-    cancelado: XCircle,
+    pendiente: <Clock size={18} />,
+    en_proceso: <Loader2 size={18} className="animate-spin" />,
+    finalizado: <CheckCircle size={18} />,
+    cancelado: <XCircle size={18} />,
   };
 
   return (
-    <div className="text-white space-y-6">
-      <h1 className="text-2xl font-semibold">Estado de mis vehículos</h1>
-      <p className="text-white/70 text-sm mb-4">
-        Aquí puedes consultar el progreso y estado actual de tus vehículos en el taller.
-      </p>
+    <div className="space-y-8">
 
-      {loading ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
-          Cargando información…
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-rose-600/50 bg-rose-600/10 p-6 text-center text-rose-400 flex items-center justify-center gap-2">
-          <AlertCircle size={18} /> {error}
-        </div>
-      ) : vehiculos.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
-          No tienes vehículos registrados.
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {vehiculos.map((v) => {
-            const Icono = iconoEstado[v.estado] || Car;
-            return (
-              <div
-                key={v.id_vehiculo}
-                className="rounded-2xl border border-white/10 bg-[#1d1a38] shadow-xl p-5 flex flex-col justify-between transition hover:bg-[#221e45]/90"
+      {/* BOTÓN DESPLEGABLE DE INFORMACIÓN */}
+      <button
+        onClick={() => setShowEstados(true)}
+        className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition"
+      >
+        <InfoIcon size={18} />
+        Ver estados del vehículo
+        <ChevronDown size={16} />
+      </button>
+
+      {/* MODAL CON LOS ESTADOS */}
+      {showEstados && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-lg bg-[#18122b] rounded-2xl border border-white/10 p-6 space-y-6 shadow-xl">
+
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-semibold text-lg">
+                Estados del vehículo
+              </h3>
+              <button
+                onClick={() => setShowEstados(false)}
+                className="text-white/60 hover:text-white"
               >
-                {/* Encabezado */}
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">{v.modelo}</h2>
-                    <p className="text-sm text-white/70">Placa: {v.placa}</p>
-                  </div>
-                  <div className={`p-2 rounded-full ${estadoColor[v.estado]}`}>
-                    <Icono size={18} />
-                  </div>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {estadosVehiculoInfo.map((e, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/80"
+                >
+                  <p className={`font-bold ${e.color}`}>{e.title}</p>
+                  <p>{e.desc}</p>
                 </div>
+              ))}
+            </div>
 
-                {/* Descripción */}
-                <p className="text-sm text-white/80 mb-3">{v.descripcion}</p>
-
-                {/* Barra de progreso */}
-                <div className="w-full h-2 bg-white/10 rounded-full mb-3 overflow-hidden">
-                  <div
-                    className={`h-2 ${estadoColor[v.estado]} transition-all duration-700`}
-                    style={{ width: `${v.avance}%` }}
-                  />
-                </div>
-
-                {/* Estado + mecánico */}
-                <div className="flex items-center justify-between text-sm">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${estadoColor[v.estado]}`}
-                  >
-                    {v.estado.replace("_", " ")}
-                  </span>
-                  <span className="text-white/70">
-                    👨‍🔧 {v.mecanico || "No asignado"}
-                  </span>
-                </div>
-
-                {/* Última actualización */}
-                <p className="mt-3 text-xs text-white/50">
-                  Última actualización: {v.ultimaActualizacion}
-                </p>
-              </div>
-            );
-          })}
+            <button
+              onClick={() => setShowEstados(false)}
+              className="mt-3 w-full h-12 bg-[#3b138d] hover:bg-[#4619a1] rounded-xl text-white font-semibold"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
+
+      {/* ERROR */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300 flex gap-2">
+          <Info size={18} />
+          {error}
+        </div>
+      )}
+
+      {/* LISTA DE ESTADOS DEL VEHÍCULO */}
+      {reservas.map((r) => {
+        const asignacion = r.asignacion?.[0];
+
+        return (
+          <section
+            key={r.id_reserva}
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+          >
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <Car size={18} />
+              {r.vehiculo.modelo.marca.nombre} {r.vehiculo.modelo.nombre} —{" "}
+              {r.vehiculo.placa}
+            </div>
+
+            <p className="text-white/80 flex gap-2 items-center">
+              <Wrench size={18} />
+              Servicio: <span className="text-white">{r.servicio.nombre}</span>
+            </p>
+
+            <p className="text-white/60">
+              Fecha programada:{" "}
+              {new Date(r.fecha).toLocaleDateString("es-PE")}
+            </p>
+
+            {/* ESTADO DEL MECÁNICO */}
+            {asignacion ? (
+              <div className="flex items-center gap-3 text-white/80">
+                <UserCog size={18} />
+
+                <span className="text-white font-semibold">
+                  {asignacion.mecanico.usuario.nombre}
+                </span>
+
+                <span className={`ml-2 font-bold flex items-center gap-1 ${colorEstado[asignacion.estado]}`}>
+                  {iconoEstado[asignacion.estado]}
+                  {asignacion.estado.toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <p className="text-white/50">Mecánico aún no asignado.</p>
+            )}
+
+            <p className="text-purple-300 font-bold text-lg">
+              Total aprobado: S/ {r.cotizacion.total}
+            </p>
+          </section>
+        );
+      })}
+
     </div>
   );
 }
-

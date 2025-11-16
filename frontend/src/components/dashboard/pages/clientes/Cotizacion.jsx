@@ -1,484 +1,257 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Search,
-  ChevronDown,
-  Eye,
-  CheckCircle2,
-  XCircle,
+  Car,
+  Wrench,
+  CircleHelp,
+  Info,
+  Check,
   X,
-  RotateCcw,
+  Edit3,
+  MessageSquareText,
 } from "lucide-react";
 
-/* === Helpers === */
-const money = (n) =>
-  (Number(n) || 0).toLocaleString("es-PE", {
-    style: "currency",
-    currency: "PEN",
-    maximumFractionDigits: 2,
-  });
-const fmtDate = (s) => (s ? new Date(s).toLocaleDateString("es-PE") : "—");
+export default function CotizacionCliente() {
+  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const token = localStorage.getItem("token") || "";
 
-/* === Chips, toasts y modales === */
-function EstadoChip({ estado }) {
-  const map = {
-    cotizado: { text: "Cotizado", color: "bg-sky-500/80" },
-    aprobado: { text: "Aprobado", color: "bg-emerald-600/80" },
-    rechazado: { text: "Rechazado", color: "bg-rose-600/80" },
-    facturado: { text: "Facturado", color: "bg-violet-600/80" },
+  const [cotizaciones, setCotizaciones] = useState([]);
+  const [error, setError] = useState("");
+
+  const [modalTipo, setModalTipo] = useState(""); // aprobar - modificar - rechazar
+  const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
+
+  const [mensaje, setMensaje] = useState("");
+
+  // ░░░ EJEMPLOS SI FALLA EL BACKEND ░░░
+  const ejemplos = [
+    {
+      id_cotizacion: 5001,
+      total: 350,
+      estado: "cotizado",
+      fecha: "2025-11-20T10:30:00.000Z",
+      reserva: {
+        id_reserva: 1003,
+        fecha: "2025-11-25T09:00:00.000Z",
+        vehiculo: {
+          placa: "JHK-909",
+          modelo: { nombre: "Hilux", marca: { nombre: "Toyota" } },
+        },
+        servicio: { nombre: "Revisión de frenos" },
+        asignacion: [
+          {
+            estado: "en_proceso",
+            mecanico: { usuario: { nombre: "Luis Alberto" } },
+          },
+        ],
+      },
+    },
+    {
+      id_cotizacion: 5002,
+      total: 180,
+      estado: "cotizado",
+      fecha: "2025-11-21T14:10:00.000Z",
+      reserva: {
+        id_reserva: 1005,
+        fecha: "2025-11-28T12:00:00.000Z",
+        vehiculo: {
+          placa: "CCD-222",
+          modelo: { nombre: "Civic", marca: { nombre: "Honda" } },
+        },
+        servicio: { nombre: "Cambio de pastillas" },
+        asignacion: [
+          {
+            estado: "pendiente",
+            mecanico: { usuario: { nombre: "Kevin Morales" } },
+          },
+        ],
+      },
+    },
+  ];
+
+  useEffect(() => {
+    cargarCotizaciones();
+  }, []);
+
+  const cargarCotizaciones = async () => {
+    try {
+      const res = await fetch(`${API}/mecanica/cotizaciones/cliente`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) {
+        setError("No se pudieron cargar las cotizaciones (mostrando ejemplos)");
+        setCotizaciones(ejemplos);
+        return;
+      }
+
+      const data = await res.json();
+      setCotizaciones(data.length ? data : ejemplos);
+    } catch {
+      setError("No se pudieron cargar las cotizaciones (mostrando ejemplos)");
+      setCotizaciones(ejemplos);
+    }
   };
-  const { text, color } = map[estado] ?? map.cotizado;
-  return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
-      {text}
-    </span>
-  );
-}
 
-function Toast({ type = "ok", children }) {
-  const style =
-    type === "ok"
-      ? "bg-emerald-600/90"
-      : type === "warn"
-      ? "bg-amber-600/90"
-      : "bg-rose-600/90";
-  return (
-    <div
-      className={`fixed top-4 right-4 z-[60] rounded-xl px-4 py-2 text-sm text-white shadow-lg ${style}`}
-    >
-      {children}
-    </div>
-  );
-}
+  const abrirModal = (tipo, cotizacion) => {
+    setModalTipo(tipo);
+    setCotizacionSeleccionada(cotizacion);
+    setMensaje("");
+  };
 
-function Modal({ open, onClose, title, children, footer }) {
-  if (!open) return null;
+  const enviarRespuesta = () => {
+    if (modalTipo === "modificar" && mensaje.trim() === "") {
+      return alert("Debes escribir qué deseas modificar.");
+    }
+    if (modalTipo === "rechazar" && mensaje.trim() === "") {
+      return alert("Debes escribir el motivo del rechazo.");
+    }
+
+    alert(`
+Cotización #${cotizacionSeleccionada.id_cotizacion}
+
+Acción: ${modalTipo.toUpperCase()}
+Mensaje enviado al mecánico:
+${mensaje || "Sin mensaje"}
+    `);
+
+    setModalTipo("");
+    setCotizacionSeleccionada(null);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 text-white">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="absolute left-1/2 top-1/2 w-[min(780px,95vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#15132b] p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
-            <X size={18} />
-          </button>
+    <div className="space-y-6">
+
+
+      {/* ERROR */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300 flex gap-2">
+          <Info size={18} />
+          {error}
         </div>
-        <div className="mt-4">{children}</div>
-        {footer && <div className="mt-5">{footer}</div>}
-      </div>
-    </div>
-  );
-}
+      )}
 
-/* === Select personalizado oscuro === */
-function DarkSelect({ value, setValue, options }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative w-full">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full h-11 rounded-2xl bg-[#3b138d] text-white px-4 pr-9
-                   outline-none border border-white/10 focus:ring-2 focus:ring-white/20
-                   flex items-center justify-between capitalize"
-      >
-        <span>{value}</span>
-        <ChevronDown size={16} className="text-white" />
-      </button>
+      {/* LISTA DE COTIZACIONES */}
+      {cotizaciones.map((c) => {
+        const asig = c.reserva.asignacion?.[0];
 
-      {open && (
-        <div className="absolute mt-1 w-full rounded-xl border border-white/10 bg-[#1e1442] shadow-lg z-20">
-          {options.map((opt) => (
+        return (
+          <section
+            key={c.id_cotizacion}
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+          >
+            {/* VEHÍCULO */}
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <Car size={18} />
+              {c.reserva.vehiculo.modelo.marca.nombre}{" "}
+              {c.reserva.vehiculo.modelo.nombre} —{" "}
+              {c.reserva.vehiculo.placa}
+            </div>
+
+            {/* SERVICIO */}
+            <p className="text-white/80 flex gap-2 items-center">
+              <Wrench size={18} />
+              Servicio:{" "}
+              <span className="text-white">{c.reserva.servicio.nombre}</span>
+            </p>
+
+            {/* MECÁNICO */}
+            {asig ? (
+              <p className="text-white/70">
+                Mecánico:{" "}
+                <span className="text-white font-semibold">
+                  {asig.mecanico.usuario.nombre}
+                </span>{" "}
+                — {asig.estado}
+              </p>
+            ) : (
+              <p className="text-white/60">Mecánico aún no asignado.</p>
+            )}
+
+            {/* PRECIO */}
+            <p className="text-purple-300 font-bold text-lg">
+              Total cotizado: S/ {c.total}
+            </p>
+
+            {/* BOTONES */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              {/* Aceptar */}
+              <button
+                onClick={() => abrirModal("aprobar", c)}
+                className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-green-600/20 border border-green-600/40 text-green-300 hover:bg-green-600/30"
+              >
+                <Check size={18} />
+                Aprobar cotización
+              </button>
+
+              {/* Solicitar modificación */}
+              <button
+                onClick={() => abrirModal("modificar", c)}
+                className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-yellow-600/20 border border-yellow-600/40 text-yellow-300 hover:bg-yellow-600/30"
+              >
+                <Edit3 size={18} />
+                Solicitar modificación
+              </button>
+
+              {/* Rechazar */}
+              <button
+                onClick={() => abrirModal("rechazar", c)}
+                className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-red-600/20 border border-red-600/40 text-red-300 hover:bg-red-600/30"
+              >
+                <X size={18} />
+                Rechazar
+              </button>
+            </div>
+          </section>
+        );
+      })}
+
+      {/* MODAL */}
+      {modalTipo !== "" && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
+          <div className="w-full max-w-lg bg-[#0f1120] border border-white/10 rounded-2xl p-6 space-y-5">
+
+            <h2 className="text-white text-xl font-semibold flex items-center gap-2">
+              <MessageSquareText size={20} />
+              {modalTipo === "aprobar" && "Confirmar aprobación"}
+              {modalTipo === "modificar" && "Solicitar modificación"}
+              {modalTipo === "rechazar" && "Rechazar cotización"}
+            </h2>
+
+            {/* Campo mensaje (obligatorio en modificar y rechazar) */}
+            {modalTipo !== "aprobar" && (
+              <div>
+                <label className="text-white/80">
+                  {modalTipo === "modificar"
+                    ? "¿Qué deseas que el mecánico modifique?"
+                    : "Motivo del rechazo"}
+                </label>
+                <textarea
+                  value={mensaje}
+                  onChange={(e) => setMensaje(e.target.value)}
+                  className="w-full mt-2 p-3 rounded-xl bg-white/5 border border-white/10 text-white"
+                  rows={3}
+                  placeholder="Escribe aquí..."
+                ></textarea>
+              </div>
+            )}
+
             <button
-              key={opt}
-              onClick={() => {
-                setValue(opt);
-                setOpen(false);
-              }}
-              className={`block w-full text-left px-4 py-2 text-sm capitalize hover:bg-white/10 ${
-                opt === value ? "bg-[#3b138d]" : ""
-              }`}
+              onClick={enviarRespuesta}
+              className="w-full h-12 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold"
             >
-              {opt}
+              Enviar
             </button>
-          ))}
+
+            <button
+              onClick={() => setModalTipo("")}
+              className="w-full h-12 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 font-semibold"
+            >
+              Cancelar
+            </button>
+
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-/* === Tarjeta móvil === */
-function QuoteCardMobile({ c, onView, onAccept, onReject }) {
-  const canAccept = c.estado === "cotizado"; // solo cotizado puede aprobarse
-  const canReject = c.estado === "cotizado"; // solo cotizado puede rechazarse
-  const btn =
-    "h-10 rounded-xl grid place-items-center transition disabled:opacity-40 disabled:cursor-not-allowed";
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-sm text-white/70">
-            #{c.id_cotizacion} · {fmtDate(c.fecha)}
-          </div>
-          <div className="font-semibold">{c.reserva?.servicio?.nombre}</div>
-          <div className="text-sm text-white/80">
-            {c.reserva?.vehiculo?.modelo?.marca?.nombre} •{" "}
-            {c.reserva?.vehiculo?.modelo?.nombre} —{" "}
-            {c.reserva?.vehiculo?.placa}
-          </div>
-        </div>
-        <EstadoChip estado={c.estado} />
-      </div>
-      <div className="mt-3 text-sm text-white/80">
-        Total estimado: <b className="text-white">{money(c.total)}</b>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          className={`${btn} bg-white/10 hover:bg-white/15`}
-          onClick={() => onView(c)}
-        >
-          <Eye size={18} />
-        </button>
-        <button
-          className={`${btn} bg-emerald-600/80 hover:bg-emerald-600`}
-          disabled={!canAccept}
-          onClick={() => onAccept(c.id_cotizacion)}
-        >
-          <CheckCircle2 size={18} />
-        </button>
-        <button
-          className={`${btn} bg-rose-600/80 hover:bg-rose-600 col-span-2`}
-          disabled={!canReject}
-          onClick={() => onReject(c)}
-        >
-          <XCircle size={18} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* === Página principal === */
-export default function CotizacionCliente() {
-  const [cotizaciones, setCotizaciones] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
-  const [modal, setModal] = useState(null);
-  const [current, setCurrent] = useState(null);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("todas");
-
-  // 🚀 Ejemplo manual (visual)
-  useEffect(() => {
-    setCotizaciones([
-      {
-        id_cotizacion: 1,
-        fecha: "2025-11-11",
-        estado: "cotizado",
-        total: 320,
-        reserva: {
-          servicio: { nombre: "Cambio de aceite y filtro" },
-          vehiculo: {
-            placa: "ABC-123",
-            modelo: { nombre: "Corolla", marca: { nombre: "Toyota" } },
-          },
-        },
-      },
-      {
-        id_cotizacion: 2,
-        fecha: "2025-11-09",
-        estado: "aprobado",
-        total: 480,
-        reserva: {
-          servicio: { nombre: "Frenos completos" },
-          vehiculo: {
-            placa: "XYZ-789",
-            modelo: { nombre: "Rio", marca: { nombre: "Kia" } },
-          },
-        },
-      },
-    ]);
-    setLoading(false);
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return cotizaciones
-      .filter((c) => (status === "todas" ? true : c.estado === status))
-      .filter((c) => {
-        const s = c.reserva?.servicio?.nombre?.toLowerCase() || "";
-        const v = c.reserva?.vehiculo?.modelo?.nombre?.toLowerCase() || "";
-        const m = c.reserva?.vehiculo?.modelo?.marca?.nombre?.toLowerCase() || "";
-        return (
-          s.includes(q) ||
-          v.includes(q) ||
-          m.includes(q) ||
-          String(c.id_cotizacion).includes(q)
-        );
-      })
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  }, [cotizaciones, query, status]);
-
-  const aceptar = (id) => {
-    setCotizaciones((prev) =>
-      prev.map((c) =>
-        c.id_cotizacion === id
-          ? { ...c, estado: c.estado === "rechazado" ? c.estado : "aprobado" }
-          : c
-      )
-    );
-    setToast({ type: "ok", msg: "Cotización aprobada ✅" });
-    setTimeout(() => setToast(null), 1800);
-  };
-
-  const rechazar = (id, motivo) => {
-    setCotizaciones((prev) =>
-      prev.map((c) =>
-        c.id_cotizacion === id
-          ? { ...c, estado: c.estado === "aprobado" ? c.estado : "rechazado", motivo }
-          : c
-      )
-    );
-    setToast({ type: "warn", msg: "Solicitud enviada al taller 📨" });
-    setTimeout(() => setToast(null), 1800);
-  };
-
-  return (
-    <div className="space-y-6 text-white">
-      {toast && <Toast type={toast.type}>{toast.msg}</Toast>}
-
-      {/* ====== Barra de control ====== */}
-      <div className="grid grid-cols-12 gap-3 items-stretch">
-        <div className="col-span-12 sm:col-span-6 relative">
-          <input
-            className="w-full h-11 rounded-2xl bg-[#3b138d] text-white placeholder:text-white/70 px-9 pr-9
-                       outline-none border border-white/10 focus:ring-2 focus:ring-white/20"
-            placeholder="Buscar por servicio, marca, modelo o N°"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-        <div className="col-span-8 sm:col-span-4">
-          <DarkSelect
-            value={status}
-            setValue={setStatus}
-            options={["todas", "cotizado", "aprobado", "rechazado", "facturado"]}
-          />
-        </div>
-
-        <div className="col-span-4 sm:col-span-2">
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full h-11 rounded-2xl bg-white/10 hover:bg-white/15
-                       flex items-center justify-center gap-2"
-          >
-            <RotateCcw size={16} />
-            <span className="hidden sm:inline">Recargar</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ====== Tabla Desktop ====== */}
-      <div className="hidden md:block rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-white/5">
-            <tr className="[&>th]:py-3 [&>th]:px-4 [&>th]:text-left">
-              <th>N°</th>
-              <th>Servicio</th>
-              <th>Vehículo</th>
-              <th>Fecha</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-white/70">
-                  Cargando…
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-white/70">
-                  No hay cotizaciones.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((c) => {
-                const canAccept = c.estado === "cotizado";
-                const canReject = c.estado === "cotizado";
-                return (
-                  <tr
-                    key={c.id_cotizacion}
-                    className="border-t border-white/10 hover:bg-white/5 transition"
-                  >
-                    <td className="px-4 py-2">{c.id_cotizacion}</td>
-                    <td className="px-4 py-2">
-                      {c.reserva?.servicio?.nombre || "—"}
-                    </td>
-                    <td className="px-4 py-2">
-                      {c.reserva?.vehiculo?.modelo?.marca?.nombre || "—"} •{" "}
-                      {c.reserva?.vehiculo?.modelo?.nombre || "—"} —{" "}
-                      {c.reserva?.vehiculo?.placa || "—"}
-                    </td>
-                    <td className="px-4 py-2">{fmtDate(c.fecha)}</td>
-                    <td className="px-4 py-2">
-                      <EstadoChip estado={c.estado} />
-                    </td>
-                    <td className="px-4 py-2 flex gap-2">
-                      <button
-                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15"
-                        onClick={() => {
-                          setCurrent(c);
-                          setModal("view");
-                        }}
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        className="px-3 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-600"
-                        disabled={!canAccept}
-                        onClick={() => aceptar(c.id_cotizacion)}
-                      >
-                        <CheckCircle2 size={16} />
-                      </button>
-                      <button
-                        className="px-3 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-600"
-                        disabled={!canReject}
-                        onClick={() => {
-                          setCurrent(c);
-                          setModal("rechazar");
-                        }}
-                      >
-                        <XCircle size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ====== Móvil ====== */}
-      <div className="md:hidden space-y-3">
-        {filtered.map((c) => (
-          <QuoteCardMobile
-            key={c.id_cotizacion}
-            c={c}
-            onView={(data) => {
-              setCurrent(data);
-              setModal("view");
-            }}
-            onAccept={aceptar}
-            onReject={(row) => {
-              setCurrent(row);
-              setModal("rechazar");
-            }}
-          />
-        ))}
-      </div>
-
-      {/* ====== Modal VER ====== */}
-      <Modal
-        open={modal === "view" && current}
-        onClose={() => setModal(null)}
-        title={`Cotización #${current?.id_cotizacion}`}
-        footer={
-          current && (
-            <div className="flex justify-between items-center">
-              <div className="text-sm">
-                Total: <b>{money(current.total)}</b>
-              </div>
-              <button
-                className="px-4 h-10 rounded-lg bg-emerald-600/80 hover:bg-emerald-600"
-                disabled={current.estado !== "cotizado"}
-                onClick={() => {
-                  aceptar(current.id_cotizacion);
-                  setModal(null);
-                }}
-              >
-                Aceptar
-              </button>
-            </div>
-          )
-        }
-      >
-        {current && (
-          <div className="space-y-2 text-sm">
-            <p>
-              <b>Servicio:</b> {current.reserva?.servicio?.nombre || "—"}
-            </p>
-            <p>
-              <b>Vehículo:</b>{" "}
-              {current.reserva?.vehiculo?.modelo?.marca?.nombre}{" "}
-              {current.reserva?.vehiculo?.modelo?.nombre} (
-              {current.reserva?.vehiculo?.placa})
-            </p>
-            <p>
-              <b>Fecha:</b> {fmtDate(current.fecha)}
-            </p>
-            <p>
-              <b>Estado:</b> <EstadoChip estado={current.estado} />
-            </p>
-          </div>
-        )}
-      </Modal>
-
-      {/* ====== Modal RECHAZAR ====== */}
-      <Modal
-        open={modal === "rechazar" && current}
-        onClose={() => setModal(null)}
-        title={`Solicitar cambios – #${current?.id_cotizacion}`}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button
-              className="px-4 h-10 rounded-lg bg-white/10 hover:bg-white/15"
-              onClick={() => setModal(null)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-4 h-10 rounded-lg bg-rose-600/80 hover:bg-rose-600"
-              onClick={() => {
-                const motivo =
-                  document.getElementById("motivo-rechazo")?.value || "";
-                rechazar(current.id_cotizacion, motivo);
-                setModal(null);
-              }}
-            >
-              Enviar solicitud
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-white/90 mb-3">
-          Indica qué parte de la cotización deseas modificar o revisar.
-        </p>
-        <textarea
-          id="motivo-rechazo"
-          className="w-full min-h-[120px] rounded-xl bg-white/5 border border-white/10 p-3 outline-none focus:ring-2 focus:ring-white/20 text-white placeholder:text-white/60"
-          placeholder="Escribe tu mensaje aquí…"
-        />
-      </Modal>
-    </div>
-  );
-}
-

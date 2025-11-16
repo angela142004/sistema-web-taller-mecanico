@@ -18,6 +18,11 @@
   },
   "homepage": "https://github.com/angela142004/sistema-web-taller-mecanico#readme",
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "prisma": "^6.19.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "jspdf": "^3.0.3"
   }
 }
