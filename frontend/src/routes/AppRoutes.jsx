@@ -10,7 +10,7 @@ import DashboardMecanico from "../pages/DashboardMecan";
 import AppRouter from "../components/dashboard/route/AppRouter";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-
+import AdminRouter from "../components/dashboard/route/AdminRouter";
 // Función para proteger rutas según rol
 const PrivateRoute = ({ children, rol }) => {
   const userRol = localStorage.getItem("rol"); // lo guardaste en el login
@@ -80,10 +80,10 @@ const AppRoutes = () => (
 
     {/* Dashboards protegidos: NO usan PublicLayout */}
     <Route
-      path="/dashboard/admin"
+      path="/dashboard/admin/*"
       element={
         <PrivateRoute rol="admin">
-          <DashboardAdmin />
+          <AdminRouter />
         </PrivateRoute>
       }
     />
