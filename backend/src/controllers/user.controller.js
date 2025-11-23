@@ -14,17 +14,25 @@ export const registerUser = async (req, res) => {
     const { nombre, correo, contraseña, rol } = req.body;
 
     // Validación de campos obligatorios
-    if (!nombre || !correo || !contraseña || !rol) {
-      return res.status(400).json({ message: "Faltan campos requeridos" });
+    if (!nombre || !correo || !contraseña) {
+      return res
+        .status(400)
+        .json({ message: "Todos los campos son obligatorios" });
     }
 
-    // Verificar si ya existe un usuario con ese correo
-    const existingUser = await prisma.usuarios.findUnique({
-      where: { correo },
+    // Validar rol
+    const rolValido = ["cliente", "mecanico", "admin"];
+    const rolFinal = rolValido.includes(rol) ? rol : "cliente";
+
+    // Validar si el usuario ya existe (por nombre o correo)
+    const existingUser = await prisma.usuarios.findFirst({
+      where: {
+        OR: [{ nombre: nombre }, { correo: correo }],
+      },
     });
 
     if (existingUser) {
-      return res.status(400).json({ message: "El correo ya está registrado" });
+      return res.status(400).json({ message: "Usuario ya existe" });
     }
 
     // Encriptar contraseña
@@ -36,24 +44,36 @@ export const registerUser = async (req, res) => {
         nombre,
         correo,
         contraseña: hashedPassword,
-        rol,
+        rol: rolFinal,
       },
     });
 
     // Si es cliente, crear registro en tabla clientes
-    if (rol === "cliente") {
+    if (rolFinal === "cliente") {
       await prisma.clientes.create({
-        data: { id_usuario: newUser.id_usuario },
+        data: {
+          id_usuario: newUser.id_usuario,
+          telefono: "", // puede actualizarse después
+          direccion: "",
+        },
       });
     }
 
     res.status(201).json({
-      message: "Usuario registrado exitosamente",
-      user: newUser,
+      message: "Usuario registrado correctamente",
+      user: {
+        id_usuario: newUser.id_usuario,
+        nombre: newUser.nombre,
+        correo: newUser.correo,
+        rol: newUser.rol,
+      },
     });
   } catch (error) {
-    console.error("Error en registerUser:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    console.log(error);
+    res.status(500).json({
+      message: "Error al registrar usuario",
+      error: error.message,
+    });
   }
 };
 
