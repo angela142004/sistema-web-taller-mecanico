@@ -1,10 +1,18 @@
 import { Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Sidebar from "../components/Slidebar.jsx";
-import Topbar from "../components/Topbar.jsx";
+import Sidebar from "../components/SlidebarAdmin.jsx";
+import Topbar from "../components/TopbarAdmin.jsx";
 
 // páginas del admin
-import Inicio from "../pages/admin/Inicio.jsx";
+import Home from "../pages/admin/Inicio.jsx";
+import Servicio from "../pages/admin/asignar_servicio.jsx"
+import Cotizaciones from "../pages/admin/cotizaciones.jsx";
+import Repuestos  from "../pages/admin/repuestos.jsx"
+import Registro from "../pages/admin/registro.jsx";
+import Historial from "../pages/admin/historial.jsx"
+import Configuracion from "../pages/admin/configuracion.jsx";
+import Reserva from "../pages/admin/reserva.jsx";
+
 
 function AdminLayout() {
   const [open, setOpen] = useState(false);
@@ -49,8 +57,17 @@ export default function AdminRouter() {
   return (
     <Routes>
       <Route element={<AdminLayout />}>
-        <Route index element={<Inicio />} />
-        {/* Aquí luego agregas más rutas: usuarios, reportes, etc */}
+        <Route index element={<Home />} />
+        <Route path="servicio" element={<Servicio />} />
+        <Route path="cotizaciones" element={<Cotizaciones />} />
+        <Route path="repuestos" element={<Repuestos />} />
+        <Route path="registro" element={<Registro />} />
+        <Route path="historial" element={<Historial />} />
+        <Route path="configuracion" element={<Configuracion />} />
+        <Route path="reserva" element={<Reserva />} />
+
+
+
       </Route>
     </Routes>
   );
