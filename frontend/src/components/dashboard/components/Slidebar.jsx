@@ -84,7 +84,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
            <Item to="/dashboard/cliente/reservar" icon={CalendarCheck2} label="Reservar Servicio" onClick={onClose} />
           <Item to="/dashboard/cliente/estadoreserva" icon={ClipboardCheck} label="Estado de reserva" onClick={onClose} />
           <Item to="/dashboard/cliente/cotizacion" icon={FileText} label="Cotización" onClick={onClose} />
-                    <Item to="/dashboard/cliente/estado" icon={Car} label="Estado del vehículo" onClick={onClose} />
+          <Item to="/dashboard/cliente/estado" icon={Car} label="Estado del vehículo" onClick={onClose} />
           <Item to="/dashboard/cliente/historial" icon={Clock} label="Historial" onClick={onClose} />
           <Item to="/dashboard/cliente/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
         </nav>
