@@ -12,7 +12,7 @@ import {
   Car,
 } from "lucide-react";
 
-/* ================= ITEM ================= */
+// ================= ITEM =================
 const Item = ({ to, icon: Icon, label, onClick }) => {
   const location = useLocation();
   const isActive = location.pathname === to; // ✅ Solo ruta exacta
@@ -22,11 +22,7 @@ const Item = ({ to, icon: Icon, label, onClick }) => {
       to={to}
       onClick={onClick}
       className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-200
-        ${
-          isActive
-            ? "bg-white/10 text-white font-medium"
-            : "text-white/80 hover:bg-white/5"
-        }`}
+        ${isActive ? "bg-white/10 text-white font-medium" : "text-white/80 hover:bg-white/5"}`}
     >
       {/* Indicador lateral violeta */}
       <span
@@ -39,7 +35,7 @@ const Item = ({ to, icon: Icon, label, onClick }) => {
   );
 };
 
-/* ================= SIDEBAR ================= */
+// ================= SIDEBAR =================
 export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   return (
     <>
@@ -47,11 +43,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
       <div
         onClick={onClose}
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden
-        ${
-          isOpen
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
+        ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
 
       {/* Sidebar fijo */}
@@ -66,7 +58,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
         {/* Encabezado */}
         <div className="p-4 relative shrink-0 border-b border-white/5">
           <div className="text-[11px] leading-5 text-white/60 tracking-wide">
-            MULTISERVICIOS -<br /> AUTOMOTRIZ KLEBERTH
+            ADMINISTRADOR - <br /> MULTISERVICIOS AUTOMOTRIZ KLEBERTH
           </div>
           <button
             onClick={onClose}
@@ -79,21 +71,21 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
 
         {/* Navegación principal */}
         <nav className="p-3 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3a3370] scrollbar-track-transparent">
-          <Item to="/dashboard/cliente" icon={Home} label="Inicio" onClick={onClose} />
-          <Item to="/dashboard/cliente/vehiculos" icon={Gauge} label="Mis vehículos" onClick={onClose} />
-           <Item to="/dashboard/cliente/reservar" icon={CalendarCheck2} label="Reservar Servicio" onClick={onClose} />
-          <Item to="/dashboard/cliente/estadoreserva" icon={ClipboardCheck} label="Estado de reserva" onClick={onClose} />
-          <Item to="/dashboard/cliente/cotizacion" icon={FileText} label="Cotización" onClick={onClose} />
-          <Item to="/dashboard/cliente/estado" icon={Car} label="Estado del vehículo" onClick={onClose} />
-          <Item to="/dashboard/cliente/historial" icon={Clock} label="Historial" onClick={onClose} />
-          <Item to="/dashboard/cliente/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
+          <Item to="/dashboard/admin" icon={Home} label="Inicio" onClick={onClose} />
+              <Item to="/dashboard/admin/reserva" icon={FileText} label="Reservas" onClick={onClose} />
+          <Item to="/dashboard/admin/cotizaciones" icon={FileText} label="Cotizaciones y Facturación" onClick={onClose} />
+          <Item to="/dashboard/admin/servicio" icon={CalendarCheck2} label="Asignar Servicio" onClick={onClose} />
+          <Item to="/dashboard/admin/repuestos" icon={Gauge} label="Inventario de Repuestos" onClick={onClose} />
+          <Item to="/dashboard/admin/registro" icon={ClipboardCheck} label="Registro de Usuarios" onClick={onClose} />
+          <Item to="/dashboard/admin/historial" icon={Clock} label="Historial" onClick={onClose} />
+          <Item to="/dashboard/admin/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
         </nav>
 
         {/* Tarjeta inferior */}
         <div className="p-3 mt-auto border-t border-white/5">
           <div className="rounded-2xl bg-[#2a2752] p-4 text-white shadow-inner">
             <p className="text-sm font-semibold leading-snug">
-              “Confianza, rapidez y calidad en el cuidado de tu vehículo.”
+              “Gestiona con eficiencia, controla con facilidad.”
             </p>
             <div className="mt-3 flex items-center gap-1 text-white/80">
               <span className="text-xs">más</span>

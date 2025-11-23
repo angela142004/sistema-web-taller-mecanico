@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/Slidebar.jsx";
 import Topbar from "../components/Topbar.jsx";
 
-// páginas
+// páginas cliente
 import Home from "../pages/clientes/Home.jsx";
 import ReservarServicio from "../pages/clientes/ReservarServicio.jsx";
 import Cotizacion from "../pages/clientes/Cotizacion.jsx";
@@ -13,6 +13,7 @@ import Configuracion from "../pages/clientes/Configuracion.jsx";
 import NotFound from "../pages/clientes/NotFound.jsx";
 import MiVehiculo from "../pages/clientes/MiVehiculo.jsx";
 import EstadoReserva from "../pages/clientes/EstadoReserva.jsx";
+
 
 function ClientLayout() {
   const [open, setOpen] = useState(false);
@@ -57,7 +58,7 @@ export default function AppRouter() {
       <Route element={<ClientLayout />}>
         <Route index element={<Home />} />
         <Route path="reservar" element={<ReservarServicio />} />
-                <Route path="estadoreserva" element={<EstadoReserva />} />
+        <Route path="estadoreserva" element={<EstadoReserva />} />
         <Route path="cotizacion" element={<Cotizacion />} />
         <Route path="historial" element={<HistorialServicio />} />
         <Route path="estado" element={<EstadoVehiculo />} />

@@ -106,22 +106,18 @@ export default function CotizacionCliente() {
       return alert("Debes escribir el motivo del rechazo.");
     }
 
-    alert(`
-Cotización #${cotizacionSeleccionada.id_cotizacion}
-
-Acción: ${modalTipo.toUpperCase()}
-Mensaje enviado al mecánico:
-${mensaje || "Sin mensaje"}
-    `);
-
+    alert(
+      `Cotización #${cotizacionSeleccionada.id_cotizacion}\n\nAcción: ${modalTipo.toUpperCase()}\nMensaje enviado al mecánico:\n${
+        mensaje || "Sin mensaje"
+      }`
+    );
+    // Aquí se enviaría la solicitud al backend
     setModalTipo("");
     setCotizacionSeleccionada(null);
   };
 
   return (
     <div className="space-y-6">
-
-
       {/* ERROR */}
       {error && (
         <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300 flex gap-2">
@@ -209,7 +205,6 @@ ${mensaje || "Sin mensaje"}
       {modalTipo !== "" && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
           <div className="w-full max-w-lg bg-[#0f1120] border border-white/10 rounded-2xl p-6 space-y-5">
-
             <h2 className="text-white text-xl font-semibold flex items-center gap-2">
               <MessageSquareText size={20} />
               {modalTipo === "aprobar" && "Confirmar aprobación"}
@@ -248,7 +243,6 @@ ${mensaje || "Sin mensaje"}
             >
               Cancelar
             </button>
-
           </div>
         </div>
       )}
