@@ -1,176 +1,272 @@
-import { useState } from "react";
-import {
-  Users,
-  ClipboardList,
-  Wrench,
-  ShieldCheck,
-  BarChart3,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
-export default function AdminInicio() {
-  const adminName = localStorage.getItem("nombre") || "Administrador";
+const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const token = localStorage.getItem("token") || "";
 
-  const [openModal, setOpenModal] = useState(false);
+export default function Configuracion() {
+  const [usuario, setUsuario] = useState({
+    nombre: "",
+    correo: "",
+    telefono: "",
+    direccion: "",
+  });
+
+  const [form, setForm] = useState({
+    nuevoNombre: "",
+    nuevoCorreo: "",
+    nuevoTelefono: "",
+    nuevaDireccion: "",
+    nuevaPass: "",
+    repetirPass: "",
+  });
+
+  const [preview, setPreview] = useState("/default-avatar.png");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [showPass, setShowPass] = useState(false);
+  const [showRepeat, setShowRepeat] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // ======== Cargar usuario ========
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const res = await fetch(`${API}/auth/me`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error("Error al cargar usuario");
+        const data = await res.json();
+        setUsuario(data);
+        setForm((f) => ({
+          ...f,
+          nuevoNombre: data.nombre,
+          nuevoCorreo: data.correo,
+          nuevoTelefono: data.telefono || "",
+          nuevaDireccion: data.direccion || "",
+        }));
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadUser();
+  }, []);
+
+  // ======== Cambiar foto ========
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUploadPhoto = async () => {
+    if (!selectedFile) return alert("Selecciona una imagen primero");
+    const formData = new FormData();
+    formData.append("foto", selectedFile);
+
+    try {
+      const res = await fetch(`${API}/auth/upload-photo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Error al subir imagen");
+      setMsg("✅ Foto actualizada correctamente");
+    } catch {
+      setMsg("❌ Error al subir imagen");
+    }
+  };
+
+  // ======== Actualizar datos ========
+  const handleUpdateField = async () => {
+    try {
+      const payload = {
+        nombre: form.nuevoNombre,
+        correo: form.nuevoCorreo,
+        telefono: form.nuevoTelefono,
+        direccion: form.nuevaDireccion,
+      };
+      const res = await fetch(`${API}/auth/update-user`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Error al actualizar datos");
+      setMsg("✅ Datos actualizados correctamente");
+    } catch {
+      setMsg("❌ Error al actualizar datos");
+    }
+  };
+
+  // ======== Cambiar contraseña ========
+  const handleChangePassword = async () => {
+    if (form.nuevaPass !== form.repetirPass) {
+      setMsg("⚠️ Las contraseñas no coinciden");
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/auth/change-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ contraseña: form.nuevaPass }),
+      });
+      if (!res.ok) throw new Error("Error al cambiar contraseña");
+      setMsg("✅ Contraseña actualizada correctamente");
+      setForm((f) => ({ ...f, nuevaPass: "", repetirPass: "" }));
+    } catch {
+      setMsg("❌ Error al cambiar contraseña");
+    }
+  };
+
+  // ======== Estilos ========
+  const input =
+    "w-full h-12 px-4 rounded-xl bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-[#3b138d] outline-none";
+  const button =
+    "h-12 px-6 rounded-xl bg-[#3b138d] hover:bg-[#4316a1] text-white font-semibold transition w-full sm:w-auto";
 
   return (
-    <div className="text-white space-y-10 animate-fadeIn p-4 sm:p-6">
-      {/* ---------- BLOQUE DE BIENVENIDA ---------- */}
-      <div
-        className="rounded-3xl bg-gradient-to-br from-[#1b223b] via-[#13182b] to-[#0e1220]
-                      p-8 sm:p-10 shadow-2xl border border-white/10 relative overflow-hidden"
-      >
-        {/* Decoración */}
-        <div className="absolute -top-20 -right-10 w-60 h-60 bg-blue-600/20 blur-[120px]"></div>
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-500/20 blur-[100px]"></div>
-
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight relative z-10">
-          Panel de Control – <span className="text-blue-400">{adminName}</span>{" "}
-          👋
-        </h1>
-
-        <p className="text-white/80 text-base sm:text-lg mt-2 max-w-2xl relative z-10">
-          Aquí puedes administrar clientes, mecánicos, reservas, reportes y toda
-          la información del taller.
-        </p>
-
-        {/* ---------- CARDS RESUMEN ---------- */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
-          {/* CLIENTES */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
+    <div className="text-white w-full space-y-10 p-6 sm:p-10">
+      {/* ===== PERFIL ===== */}
+      <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 flex flex-col sm:flex-row items-center justify-center gap-8 shadow-md">
+        <div className="flex flex-col items-center">
+          <img
+            src={preview}
+            alt="perfil"
+            className="w-48 h-48 rounded-full object-cover border-4 border-[#3b138d]"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            id="fotoPerfil"
+            className="hidden"
+          />
+          <label
+            htmlFor="fotoPerfil"
+            className="mt-4 cursor-pointer bg-[#3b138d] hover:bg-[#4316a1] px-6 py-2 rounded-lg text-sm transition"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-blue-600/30 text-blue-300">
-                <Users size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Clientes</p>
-                <h2 className="text-2xl font-bold mt-1">152</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* RESERVAS ACTIVAS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
+            Cambiar foto
+          </label>
+          <button
+            onClick={handleUploadPhoto}
+            className="mt-2 text-sm text-white/70 underline hover:text-white"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-emerald-600/30 text-emerald-300">
-                <ClipboardList size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Reservas</p>
-                <h2 className="text-2xl font-bold mt-1">24</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* MANTENIMIENTOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-yellow-500/30 text-yellow-300">
-                <Wrench size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">En Proceso</p>
-                <h2 className="text-2xl font-bold mt-1">8</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* MECÁNICOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-purple-500/30 text-purple-300">
-                <ShieldCheck size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Mecánicos</p>
-                <h2 className="text-2xl font-bold mt-1">12</h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------- ACCESOS RÁPIDOS ---------- */}
-      <div className="rounded-3xl bg-[#16182c] p-6 sm:p-8 border border-white/10 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-semibold mb-4">
-          Accesos rápidos ⚡
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestionar Clientes <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Ver Reservas <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestión de Mecánicos <ChevronRight />
+            Subir
           </button>
         </div>
 
-        <button
-          onClick={() => setOpenModal(true)}
-          className="mt-6 flex items-center gap-2 text-blue-300 hover:text-blue-200 transition"
-        >
-          Ver estadísticas del taller <BarChart3 size={18} />
-        </button>
-      </div>
+        <div className="text-center sm:text-left max-w-md">
+          <h2 className="text-2xl font-semibold">{usuario.nombre || "Usuario"}</h2>
+          <p className="text-white/80">{usuario.correo || "correo@ejemplo.com"}</p>
+          <p className="text-white/70 mt-2">
+            Teléfono: {usuario.telefono || "—"} <br />
+            Dirección: {usuario.direccion || "—"}
+          </p>
+        </div>
+      </section>
 
-      {/* ---------- MODAL ESTADÍSTICAS ---------- */}
-      {openModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 animate-fadeIn shadow-2xl relative">
+      {/* ===== FORMULARIOS ===== */}
+      <section className="grid md:grid-cols-2 gap-8">
+        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-6">
+          <h3 className="text-xl font-semibold mb-4">Datos personales</h3>
+
+          <div>
+            <label className="block mb-2 font-medium">Nombre</label>
+            <input
+              className={input}
+              value={form.nuevoNombre}
+              onChange={(e) => setForm({ ...form, nuevoNombre: e.target.value })}
+              placeholder="Nuevo nombre"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Correo</label>
+            <input
+              className={input}
+              value={form.nuevoCorreo}
+              onChange={(e) => setForm({ ...form, nuevoCorreo: e.target.value })}
+              placeholder="Nuevo correo"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Teléfono</label>
+            <input
+              className={input}
+              value={form.nuevoTelefono}
+              onChange={(e) => setForm({ ...form, nuevoTelefono: e.target.value })}
+              placeholder="Nuevo teléfono"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Dirección</label>
+            <input
+              className={input}
+              value={form.nuevaDireccion}
+              onChange={(e) => setForm({ ...form, nuevaDireccion: e.target.value })}
+              placeholder="Nueva dirección"
+            />
+          </div>
+
+          <button className={button} onClick={handleUpdateField}>
+            Guardar cambios
+          </button>
+        </div>
+
+        {/* CAMBIO DE CONTRASEÑA */}
+        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-6">
+          <h3 className="text-xl font-semibold mb-4">Cambiar contraseña</h3>
+
+          <div className="relative">
+            <input
+              type={showPass ? "text" : "password"}
+              className={input}
+              placeholder="Nueva contraseña"
+              value={form.nuevaPass}
+              onChange={(e) => setForm({ ...form, nuevaPass: e.target.value })}
+            />
             <button
-              onClick={() => setOpenModal(false)}
-              className="absolute top-4 right-4 text-white/70 hover:text-white"
+              onClick={() => setShowPass(!showPass)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700"
             >
-              <X size={22} />
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4 text-blue-300">
-              Estadísticas Generales 📊
-            </h2>
-
-            <div className="space-y-4 text-white/80 text-sm leading-relaxed">
-              <p>
-                📌 <b>Clientes activos:</b> 152
-              </p>
-              <p>
-                🔧 <b>Mantenimientos mensuales:</b> 34
-              </p>
-              <p>
-                📅 <b>Reservas completadas este mes:</b> 19
-              </p>
-              <p>
-                🧰 <b>Mecánicos disponibles:</b> 12
-              </p>
-              <p>
-                💰 <b>Ingresos estimados:</b> S/ 12,500
-              </p>
-            </div>
-
-            <button
-              onClick={() => setOpenModal(false)}
-              className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl transition"
-            >
-              Cerrar
+              {showPass ? <EyeOff /> : <Eye />}
             </button>
           </div>
+
+          <div className="relative">
+            <input
+              type={showRepeat ? "text" : "password"}
+              className={input}
+              placeholder="Repetir contraseña"
+              value={form.repetirPass}
+              onChange={(e) => setForm({ ...form, repetirPass: e.target.value })}
+            />
+            <button
+              onClick={() => setShowRepeat(!showRepeat)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700"
+            >
+              {showRepeat ? <EyeOff /> : <Eye />}
+            </button>
+          </div>
+
+          <button className={button} onClick={handleChangePassword}>
+            Cambiar contraseña
+          </button>
+        </div>
+      </section>
+
+      {msg && (
+        <div className="mt-6 bg-white/10 text-center text-white/90 px-6 py-3 rounded-xl max-w-2xl mx-auto">
+          {msg}
         </div>
       )}
     </div>
