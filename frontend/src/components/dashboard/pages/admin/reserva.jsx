@@ -89,7 +89,6 @@ export default function AdminReservas() {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-white font-semibold mb-4 text-2xl">Solicitudes de reserva</h3>
 
       {/* Filtro de estado */}
       <div className="flex items-center gap-4 mb-6">
