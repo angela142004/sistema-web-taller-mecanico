@@ -33,10 +33,11 @@ enum EstadoAsignacion {
 }
 
 enum EstadoCotizacion {
-  cotizado
-  aprobado
-  facturado
+  PENDIENTE
+  CONFIRMADO
+  RECHAZADO
 }
+
 
 // ===================== MODELOS =====================
 
@@ -195,7 +196,7 @@ model Historial_Servicios {
 model Cotizaciones {
   id_cotizacion Int              @id @default(autoincrement())
   id_reserva    Int              @unique
-  fecha         DateTime         @db.Date
+  fecha DateTime @default(now()) @db.Date
   total         Decimal          @db.Decimal(10, 2)
   estado        EstadoCotizacion
 

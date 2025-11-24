@@ -12,6 +12,8 @@ import modelosRoutes from "./src/routes/modelos.routes.js";
 import serviciosRoutes from "./src/routes/servicios.routes.js";
 import reservasRoutes from "./src/routes/reservas.routes.js"; // ✅ nuevo import
 import { getServicios } from "./src/controllers/servicios.controller.js";
+import cotizacionesRoutes from "./src/routes/cotizacion.routes.js";
+import cotizacionClienteRoutes from "./src/routes/cotizacion.cliente.routes.js";
 
 dotenv.config();
 
@@ -43,6 +45,8 @@ app.use("/mecanica/marcas", marcasRoutes);
 app.use("/mecanica/modelos", modelosRoutes);
 app.use("/mecanica/servicios", serviciosRoutes);
 app.use("/mecanica/reservas", reservasRoutes); // ✅ NUEVO: rutas de reservas
+app.use("/mecanica/cotizaciones", cotizacionesRoutes); // ✅ NUEVO: rutas de cotizaciones
+app.use("/mecanica/cotizaciones-cliente", cotizacionClienteRoutes);
 
 // Fallback diagnóstico para servicios
 app.get("/mecanica/servicios", getServicios);
