@@ -73,7 +73,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
         <nav className="p-3 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3a3370] scrollbar-track-transparent">
           <Item to="/dashboard/admin" icon={Home} label="Inicio" onClick={onClose} />
               <Item to="/dashboard/admin/reserva" icon={FileText} label="Reservas" onClick={onClose} />
-          <Item to="/dashboard/admin/cotizaciones" icon={FileText} label="Cotizaciones y Facturación" onClick={onClose} />
+          <Item to="/dashboard/admin/cotizaciones" icon={FileText} label="Cotizaciones" onClick={onClose} />
           <Item to="/dashboard/admin/servicio" icon={CalendarCheck2} label="Asignar Servicio" onClick={onClose} />
           <Item to="/dashboard/admin/repuestos" icon={Gauge} label="Inventario de Repuestos" onClick={onClose} />
           <Item to="/dashboard/admin/registro" icon={ClipboardCheck} label="Registro de Usuarios" onClick={onClose} />
