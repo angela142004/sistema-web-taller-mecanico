@@ -12,6 +12,7 @@ import Registro from "../pages/admin/registro.jsx";
 import Historial from "../pages/admin/historial.jsx"
 import Configuracion from "../pages/admin/configuracion.jsx";
 import Reserva from "../pages/admin/reserva.jsx";
+import Progreso from "../pages/admin/progreso.jsx";
 
 
 function AdminLayout() {
@@ -65,6 +66,7 @@ export default function AdminRouter() {
         <Route path="historial" element={<Historial />} />
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="reserva" element={<Reserva />} />
+        <Route path="progreso" element={<Progreso />} />
 
 
 
