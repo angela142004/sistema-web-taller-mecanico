@@ -10,12 +10,15 @@ import {
   ChevronRight,
   X,
   Car,
+  Wrench,
+  Users,
+  Boxes,
 } from "lucide-react";
 
 // ================= ITEM =================
 const Item = ({ to, icon: Icon, label, onClick }) => {
   const location = useLocation();
-  const isActive = location.pathname === to; // ✅ Solo ruta exacta
+  const isActive = location.pathname === to;
 
   return (
     <NavLink
@@ -39,21 +42,18 @@ const Item = ({ to, icon: Icon, label, onClick }) => {
 export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   return (
     <>
-      {/* Fondo semitransparente (solo móvil) */}
       <div
         onClick={onClose}
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden
         ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
 
-      {/* Sidebar fijo */}
       <aside
         className={`fixed top-0 left-0 z-50 w-64 h-screen bg-[#15132b] border-r border-white/10
         flex flex-col shadow-[4px_0_10px_rgba(0,0,0,0.25)]
         transition-transform duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0 lg:z-auto`}
-        aria-label="Panel de navegación"
       >
         {/* Encabezado */}
         <div className="p-4 relative shrink-0 border-b border-white/5">
@@ -63,22 +63,32 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           <button
             onClick={onClose}
             className="lg:hidden absolute right-3 top-3 p-2 rounded-lg hover:bg-white/10"
-            aria-label="Cerrar menú"
           >
             <X size={18} className="text-white" />
           </button>
         </div>
 
-        {/* Navegación principal */}
+        {/* Navegación */}
         <nav className="p-3 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3a3370] scrollbar-track-transparent">
+
           <Item to="/dashboard/admin" icon={Home} label="Inicio" onClick={onClose} />
-              <Item to="/dashboard/admin/reserva" icon={FileText} label="Reservas" onClick={onClose} />
+
+          <Item to="/dashboard/admin/reserva" icon={CalendarCheck2} label="Reservas" onClick={onClose} />
+
           <Item to="/dashboard/admin/cotizaciones" icon={FileText} label="Cotizaciones" onClick={onClose} />
-          <Item to="/dashboard/admin/servicio" icon={CalendarCheck2} label="Asignar Servicio" onClick={onClose} />
-          <Item to="/dashboard/admin/repuestos" icon={Gauge} label="Inventario de Repuestos" onClick={onClose} />
-          <Item to="/dashboard/admin/registro" icon={ClipboardCheck} label="Registro de Usuarios" onClick={onClose} />
+
+          <Item to="/dashboard/admin/servicio" icon={Wrench} label="Asignar Mecánico" onClick={onClose} />
+
+          <Item to="/dashboard/admin/progreso" icon={Gauge} label="Progreso de Vehículos" onClick={onClose} />
+
+          <Item to="/dashboard/admin/repuestos" icon={Car} label="Inventario de Repuestos" onClick={onClose} />
+
+          <Item to="/dashboard/admin/registro" icon={Users} label="Gestión de Usuarios" onClick={onClose} />
+
           <Item to="/dashboard/admin/historial" icon={Clock} label="Historial" onClick={onClose} />
+
           <Item to="/dashboard/admin/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
+
         </nav>
 
         {/* Tarjeta inferior */}
@@ -97,7 +107,6 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
         </div>
       </aside>
 
-      {/* 🟣 Margen del contenido principal */}
       <div className="lg:ml-64 transition-all duration-300"></div>
     </>
   );
