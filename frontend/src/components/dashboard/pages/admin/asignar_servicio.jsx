@@ -1,174 +1,185 @@
-import { useState } from "react";
-import {
-  Users,
-  ClipboardList,
-  Wrench,
-  ShieldCheck,
-  BarChart3,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ChevronUp, Calendar, Wrench, Car, XCircle, DollarSign } from "lucide-react";
 
-export default function AdminInicio() {
-  const adminName = localStorage.getItem("nombre") || "Administrador";
-
+export default function AsignarMecanico() {
+  // Estado de las reservas, mecánicos y el modal
+  const [reservas, setReservas] = useState([]);
+  const [mecanicos, setMecanicos] = useState([]);
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [mecanicoAsignado, setMecanicoAsignado] = useState(null);
   const [openModal, setOpenModal] = useState(false);
+  const [mecanicoSeleccionado, setMecanicoSeleccionado] = useState(null);
+  const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
+
+  // Simulación de datos de mecánicos y reservas
+  useEffect(() => {
+    // Cargar reservas y mecánicos
+    setReservas([
+      {
+        id_reserva: 1001,
+        cliente: { nombre: "Ana García", correo: "ana.garcia@example.com", telefono: "098-765-4321", direccion: "Calle Ficticia 123" },
+        vehiculo: "Ford Fiesta",
+        fecha: "2023-11-25",
+        hora_inicio: "14:00",
+        servicio: "Cambio de aceite y filtro",
+        respuestaCliente: "Aprobado",
+      },
+      {
+        id_reserva: 1002,
+        cliente: { nombre: "Luis Gómez", correo: "luis.gomez@example.com", telefono: "333-222-1111", direccion: "Calle Real 456" },
+        vehiculo: "Chevrolet Spark",
+        fecha: "2023-11-26",
+        hora_inicio: "09:30",
+        servicio: "Diagnóstico de motor",
+        respuestaCliente: "Aprobado",
+      },
+    ]);
+
+    setMecanicos([
+      { id_mecanico: 1, nombre: "Carlos Mendoza", disponible: true },
+      { id_mecanico: 2, nombre: "Laura Díaz", disponible: false },
+      { id_mecanico: 3, nombre: "José Martínez", disponible: true },
+    ]);
+  }, []);
+
+  const toggleExpanded = (id) => {
+    setExpandedCard(expandedCard === id ? null : id);
+  };
+
+  const abrirModalAsignar = (reserva) => {
+    setReservaSeleccionada(reserva);
+    setOpenModal(true);
+  };
+
+  const cerrarModal = () => {
+    setOpenModal(false);
+    setMecanicoSeleccionado(null);
+    setReservaSeleccionada(null);
+  };
+
+  const asignarMecanico = () => {
+    if (!mecanicoSeleccionado) {
+      alert("Por favor selecciona un mecánico.");
+      return;
+    }
+
+    alert(`Mecánico ${mecanicoSeleccionado.nombre} asignado a la reserva ${reservaSeleccionada.id_reserva}`);
+    cerrarModal();
+  };
 
   return (
-    <div className="text-white space-y-10 animate-fadeIn p-4 sm:p-6">
-      {/* ---------- BLOQUE DE BIENVENIDA ---------- */}
-      <div
-        className="rounded-3xl bg-gradient-to-br from-[#1b223b] via-[#13182b] to-[#0e1220]
-                      p-8 sm:p-10 shadow-2xl border border-white/10 relative overflow-hidden"
-      >
-        {/* Decoración */}
-        <div className="absolute -top-20 -right-10 w-60 h-60 bg-blue-600/20 blur-[120px]"></div>
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-500/20 blur-[100px]"></div>
+    <div className="p-4 sm:p-8 space-y-10  min-h-screen text-white">
+      {/* Sección: Reservas Aprobadas */}
+      <section>
+        <h3 className="text-white text-xl font-semibold mb-4 sm:text-lg flex items-center">
+          <Wrench className="w-5 h-5 mr-2 text-yellow-500" />
+          Reservas Aprobadas para asignar mecanico
+        </h3>
 
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight relative z-10">
-          Panel de Control – <span className="text-blue-400">{adminName}</span>{" "}
-          👋
-        </h1>
+        <div>
+          {reservas.length > 0 ? (
+            reservas.map((reserva) => (
+              <div
+                key={reserva.id_reserva}
+                className="bg-[#2a2e44] rounded-xl p-4 mb-3 shadow-md sm:p-6 transition-colors duration-200"
+              >
+                <div
+                  className="flex justify-between items-center cursor-pointer"
+                  onClick={() => toggleExpanded(reserva.id_reserva)}
+                >
+                  {/* Fila principal visible siempre */}
+                  <div className="flex items-center space-x-3">
+                    <span className="font-bold text-lg text-white">{reserva.cliente.nombre}</span>
+                    <span className="text-sm text-gray-300">{reserva.vehiculo}</span>
+                  </div>
 
-        <p className="text-white/80 text-base sm:text-lg mt-2 max-w-2xl relative z-10">
-          Aquí puedes administrar clientes, mecánicos, reservas, reportes y toda
-          la información del taller.
-        </p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full text-yellow-800 bg-yellow-200">
+                      {reserva.respuestaCliente}
+                    </span>
+                    {expandedCard === reserva.id_reserva ? (
+                      <ChevronUp className="w-5 h-5 text-gray-300" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    )}
+                  </div>
+                </div>
 
-        {/* ---------- CARDS RESUMEN ---------- */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
-          {/* CLIENTES */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-blue-600/30 text-blue-300">
-                <Users size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Clientes</p>
-                <h2 className="text-2xl font-bold mt-1">152</h2>
-              </div>
-            </div>
-          </div>
+                {/* Contenido expandible */}
+                {expandedCard === reserva.id_reserva && (
+                  <div className="mt-4 pt-4 border-t border-gray-500 space-y-3">
+                    <div className="flex items-center text-sm text-gray-300">
+                      <Calendar className="w-4 h-4 mr-2 text-blue-500" />
+                      Fecha: {reserva.fecha} @ {reserva.hora_inicio}
+                    </div>
+                    <div className="flex items-start text-sm text-gray-300">
+                      <Wrench className="w-4 h-4 mr-2 text-yellow-600 mt-0.5" />
+                      Servicio: {reserva.servicio}
+                    </div>
 
-          {/* RESERVAS ACTIVAS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-emerald-600/30 text-emerald-300">
-                <ClipboardList size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Reservas</p>
-                <h2 className="text-2xl font-bold mt-1">24</h2>
-              </div>
-            </div>
-          </div>
+                    {/* Detalles de contacto del cliente */}
+                    <div className="text-sm text-gray-300 border-t border-dashed border-gray-500 pt-3">
+                      <p className="font-semibold text-white mb-1">Contacto:</p>
+                      <p>Email: {reserva.cliente.correo}</p>
+                      <p>Tel: {reserva.cliente.telefono}</p>
+                      <p>Dirección: {reserva.cliente.direccion}</p>
+                    </div>
 
-          {/* MANTENIMIENTOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-yellow-500/30 text-yellow-300">
-                <Wrench size={26} />
+                    {/* Botón de acción para asignar mecánico */}
+                    <div className="pt-3 border-t border-gray-500">
+                      <button
+                        className="w-full text-center py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
+                        onClick={() => abrirModalAsignar(reserva)}
+                      >
+                        Asignar Mecánico
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-xs text-white/60">En Proceso</p>
-                <h2 className="text-2xl font-bold mt-1">8</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* MECÁNICOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-purple-500/30 text-purple-300">
-                <ShieldCheck size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Mecánicos</p>
-                <h2 className="text-2xl font-bold mt-1">12</h2>
-              </div>
-            </div>
-          </div>
+            ))
+          ) : (
+            <p className="text-white/60 italic">No hay reservas aprobadas para asignar un mecánico.</p>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* ---------- ACCESOS RÁPIDOS ---------- */}
-      <div className="rounded-3xl bg-[#16182c] p-6 sm:p-8 border border-white/10 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-semibold mb-4">
-          Accesos rápidos ⚡
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestionar Clientes <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Ver Reservas <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestión de Mecánicos <ChevronRight />
-          </button>
-        </div>
-
-        <button
-          onClick={() => setOpenModal(true)}
-          className="mt-6 flex items-center gap-2 text-blue-300 hover:text-blue-200 transition"
-        >
-          Ver estadísticas del taller <BarChart3 size={18} />
-        </button>
-      </div>
-
-      {/* ---------- MODAL ESTADÍSTICAS ---------- */}
+      {/* Modal para asignar mecánico */}
       {openModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 animate-fadeIn shadow-2xl relative">
-            <button
-              onClick={() => setOpenModal(false)}
-              className="absolute top-4 right-4 text-white/70 hover:text-white"
-            >
-              <X size={22} />
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4 text-blue-300">
-              Estadísticas Generales 📊
+          <div className="w-full max-w-md bg-[#2a2e44] rounded-2xl p-6 space-y-5 shadow-2xl">
+            <h2 className="text-xl font-semibold text-gray-900 border-b pb-3 border-gray-300">
+              Asignar Mecánico
             </h2>
 
-            <div className="space-y-4 text-white/80 text-sm leading-relaxed">
-              <p>
-                📌 <b>Clientes activos:</b> 152
-              </p>
-              <p>
-                🔧 <b>Mantenimientos mensuales:</b> 34
-              </p>
-              <p>
-                📅 <b>Reservas completadas este mes:</b> 19
-              </p>
-              <p>
-                🧰 <b>Mecánicos disponibles:</b> 12
-              </p>
-              <p>
-                💰 <b>Ingresos estimados:</b> S/ 12,500
-              </p>
+            <div className="space-y-4">
+              <label className="text-white">Seleccionar Mecánico:</label>
+              <select
+                className="w-full p-3 bg-[#3b4751] rounded-lg text-white"
+                onChange={(e) => setMecanicoSeleccionado(mecanicos.find(m => m.id_mecanico == e.target.value))}
+                defaultValue=""
+              >
+                <option value="" disabled>Selecciona un mecánico</option>
+                {mecanicos.map(mecanico => (
+                  <option key={mecanico.id_mecanico} value={mecanico.id_mecanico} disabled={!mecanico.disponible}>
+                    {mecanico.nombre} - {mecanico.disponible ? "Disponible" : "No disponible"}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button
-              onClick={() => setOpenModal(false)}
-              className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl transition"
+              onClick={asignarMecanico}
+              className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
             >
-              Cerrar
+              Asignar
+            </button>
+
+            <button
+              onClick={cerrarModal}
+              className="w-full py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
+            >
+              Cancelar
             </button>
           </div>
         </div>
@@ -176,3 +187,4 @@ export default function AdminInicio() {
     </div>
   );
 }
+
