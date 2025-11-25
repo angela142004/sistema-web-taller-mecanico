@@ -1,178 +1,225 @@
 import { useState } from "react";
-import {
-  Users,
-  ClipboardList,
-  Wrench,
-  ShieldCheck,
-  BarChart3,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { Search, History, Car, User, Wrench, Calendar } from "lucide-react";
 
-export default function AdminInicio() {
-  const adminName = localStorage.getItem("nombre") || "Administrador";
+// --- SIMULACIÓN DE DATOS BASE (Basado en tu esquema de Prisma) ---
 
-  const [openModal, setOpenModal] = useState(false);
+// Base de Clientes (Clientes + Usuarios)
+const clientesData = [
+  { id_cliente: 1, nombre: "Juan Pérez", telefono: "555-1234", direccion: "Calle 1, Ciudad A" },
+  { id_cliente: 2, nombre: "María Gómez", telefono: "555-5678", direccion: "Av. 2, Ciudad B" },
+];
+
+// Base de Mecánicos (Mecanicos + Usuarios)
+const mecanicosData = [
+  { id_mecanico: 1, nombre: "Carlos Rivera", especialidad: "Motores Gasolina" },
+  { id_mecanico: 2, nombre: "Laura Soto", especialidad: "Frenos y Suspensión" },
+];
+
+// Base de Vehículos (incluye Marca/Modelo para el historial)
+const vehiculosData = [
+  { id_vehiculo: 101, id_cliente: 1, placa: "ABC-123", marca: "Toyota", modelo: "Corolla", anio: 2020 },
+  { id_vehiculo: 102, id_cliente: 2, placa: "XYZ-789", marca: "Ford", modelo: "Fiesta", anio: 2018 },
+];
+
+// Base de Reservas (asociadas a los servicios)
+const reservasData = [
+    { id_reserva: 1, id_cliente: 1, id_vehiculo: 101, servicio_nombre: "Cambio de Aceite", fecha: new Date('2025-11-01T09:00:00') },
+    { id_reserva: 2, id_cliente: 2, id_vehiculo: 102, servicio_nombre: "Revisión de Frenos", fecha: new Date('2025-11-15T14:30:00') },
+];
+
+
+// Base de Historial_Servicios (EL FILTRO PRINCIPAL para servicios FINALIZADOS)
+const historialInicial = [
+  {
+    id_historial: 1,
+    id_reserva: 1,
+    id_mecanico: 1,
+    descripcion: "Se realizó el cambio de aceite estándar y filtro. Nivel de líquidos revisado.",
+    fecha: new Date('2025-11-01'),
+    costo: 35.00,
+  },
+  {
+    id_historial: 2,
+    id_reserva: 2,
+    id_mecanico: 2,
+    descripcion: "Se reemplazaron las pastillas de freno delanteras y se rectificaron discos.",
+    fecha: new Date('2025-11-15'),
+    costo: 120.50,
+  },
+];
+
+
+// --- FUNCIONES DE UTILIDAD PARA UNIR DATOS ---
+
+const getClienteInfo = (id) => {
+    const cliente = clientesData.find(c => c.id_cliente === id);
+    return cliente ? { nombre: cliente.nombre, telefono: cliente.telefono } : { nombre: "N/A", telefono: "N/A" };
+};
+
+const getMecanicoInfo = (id) => {
+    const mecanico = mecanicosData.find(m => m.id_mecanico === id);
+    return mecanico ? { nombre: mecanico.nombre, especialidad: mecanico.especialidad } : { nombre: "N/A", especialidad: "N/A" };
+};
+
+const getVehiculoInfo = (id) => {
+    const vehiculo = vehiculosData.find(v => v.id_vehiculo === id);
+    return vehiculo ? { placa: vehiculo.placa, marca: vehiculo.marca, modelo: vehiculo.modelo } : { placa: "N/A", marca: "N/A", modelo: "N/A" };
+};
+
+const getReservaInfo = (id) => {
+    return reservasData.find(r => r.id_reserva === id);
+};
+
+
+// --- COMPONENTE PRINCIPAL ---
+
+export default function HistorialServiciosPage() {
+  const [historial, setHistorial] = useState(historialInicial);
+  const [filtroBusqueda, setFiltroBusqueda] = useState("");
+
+  // 1. Unir toda la información para el historial
+  const historialCompleto = historial.map(h => {
+    const reserva = getReservaInfo(h.id_reserva);
+    if (!reserva) return null; // Saltar si la reserva no existe (Error de datos)
+
+    const cliente = getClienteInfo(reserva.id_cliente);
+    const mecanico = getMecanicoInfo(h.id_mecanico);
+    const vehiculo = getVehiculoInfo(reserva.id_vehiculo);
+
+    return {
+      ...h,
+      cliente: cliente.nombre,
+      mecanico: mecanico.nombre,
+      placa: vehiculo.placa,
+      vehiculo_descripcion: `${vehiculo.marca} ${vehiculo.modelo}`,
+      servicio_nombre: reserva.servicio_nombre,
+      fecha_atencion: reserva.fecha, // Fecha original de la cita
+      costo: h.costo.toFixed(2),
+    };
+  }).filter(item => item !== null);
+
+
+  // 2. Lógica de Filtrado (por Cliente, Mecánico, Vehículo o Servicio)
+  const historialFiltrado = historialCompleto.filter((registro) => {
+    const busquedaLower = filtroBusqueda.toLowerCase();
+    
+    return (
+      registro.cliente.toLowerCase().includes(busquedaLower) ||
+      registro.mecanico.toLowerCase().includes(busquedaLower) ||
+      registro.placa.toLowerCase().includes(busquedaLower) ||
+      registro.vehiculo_descripcion.toLowerCase().includes(busquedaLower) ||
+      registro.servicio_nombre.toLowerCase().includes(busquedaLower) ||
+      registro.descripcion.toLowerCase().includes(busquedaLower)
+    );
+  });
+
+  // Función de formato de fecha
+  const formatFecha = (date) => new Date(date).toLocaleDateString('es-ES', { 
+    year: 'numeric', month: 'short', day: 'numeric' 
+  });
+
 
   return (
-    <div className="text-white space-y-10 animate-fadeIn p-4 sm:p-6">
-      {/* ---------- BLOQUE DE BIENVENIDA ---------- */}
-      <div
-        className="rounded-3xl bg-gradient-to-br from-[#1b223b] via-[#13182b] to-[#0e1220]
-                      p-8 sm:p-10 shadow-2xl border border-white/10 relative overflow-hidden"
-      >
-        {/* Decoración */}
-        <div className="absolute -top-20 -right-10 w-60 h-60 bg-blue-600/20 blur-[120px]"></div>
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-500/20 blur-[100px]"></div>
+    <div className="space-y-6 p-4">
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 flex items-center gap-2">
+        <History size={28} className="text-blue-400" /> Historial de Servicios Finalizados
+      </h2>
 
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight relative z-10">
-          Panel de Control – <span className="text-blue-400">{adminName}</span>{" "}
-          👋
-        </h1>
-
-        <p className="text-white/80 text-base sm:text-lg mt-2 max-w-2xl relative z-10">
-          Aquí puedes administrar clientes, mecánicos, reservas, reportes y toda
-          la información del taller.
-        </p>
-
-        {/* ---------- CARDS RESUMEN ---------- */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
-          {/* CLIENTES */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-blue-600/30 text-blue-300">
-                <Users size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Clientes</p>
-                <h2 className="text-2xl font-bold mt-1">152</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* RESERVAS ACTIVAS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-emerald-600/30 text-emerald-300">
-                <ClipboardList size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Reservas</p>
-                <h2 className="text-2xl font-bold mt-1">24</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* MANTENIMIENTOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-yellow-500/30 text-yellow-300">
-                <Wrench size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">En Proceso</p>
-                <h2 className="text-2xl font-bold mt-1">8</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* MECÁNICOS */}
-          <div
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-lg 
-                          hover:bg-white/10 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-purple-500/30 text-purple-300">
-                <ShieldCheck size={26} />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">Mecánicos</p>
-                <h2 className="text-2xl font-bold mt-1">12</h2>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* --- Barra de Búsqueda y Filtros --- */}
+      <div className="relative w-full md:w-96 mb-6">
+        <input
+          type="text"
+          placeholder="Buscar por cliente, mecánico, placa o servicio..."
+          value={filtroBusqueda}
+          onChange={(e) => setFiltroBusqueda(e.target.value)}
+          className="w-full p-2 pl-10 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70" />
       </div>
 
-      {/* ---------- ACCESOS RÁPIDOS ---------- */}
-      <div className="rounded-3xl bg-[#16182c] p-6 sm:p-8 border border-white/10 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-semibold mb-4">
-          Accesos rápidos ⚡
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestionar Clientes <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Ver Reservas <ChevronRight />
-          </button>
-
-          <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl flex justify-between items-center transition">
-            Gestión de Mecánicos <ChevronRight />
-          </button>
-        </div>
-
-        <button
-          onClick={() => setOpenModal(true)}
-          className="mt-6 flex items-center gap-2 text-blue-300 hover:text-blue-200 transition"
-        >
-          Ver estadísticas del taller <BarChart3 size={18} />
-        </button>
+      {/* --- Versión para Desktop/Tablet (Tabla) --- */}
+      <div className="hidden md:block overflow-x-auto bg-white/10 rounded-xl shadow-lg border border-white/20">
+        <table className="min-w-full divide-y divide-white/20">
+          <thead className="bg-white/15">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Fecha Finalizado</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Cliente / Vehículo</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Mecánico Asignado</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Servicio Realizado</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Descripción del Trabajo</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-white/70 uppercase tracking-wider">Costo Final ($)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {historialFiltrado.map((h) => (
+              <tr key={h.id_historial} className="hover:bg-white/5 transition duration-150">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{h.id_historial}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-300">{formatFecha(h.fecha)}</td>
+                <td className="px-6 py-4 text-sm text-white">
+                    <span className="font-semibold">{h.cliente}</span><br/>
+                    <span className="text-white/70 text-xs">{h.vehiculo_descripcion} ({h.placa})</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{h.mecanico}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-300 font-medium">{h.servicio_nombre}</td>
+                <td className="px-6 py-4 text-xs text-white/80 max-w-xs overflow-hidden truncate" title={h.descripcion}>
+                    {h.descripcion}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-400">$ {h.costo}</td>
+              </tr>
+            ))}
+            {historialFiltrado.length === 0 && (
+                <tr>
+                    <td colSpan="7" className="px-6 py-6 text-center text-white/70">
+                        No se encontraron servicios finalizados con el filtro "{filtroBusqueda}".
+                    </td>
+                </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* ---------- MODAL ESTADÍSTICAS ---------- */}
-      {openModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 animate-fadeIn shadow-2xl relative">
-            <button
-              onClick={() => setOpenModal(false)}
-              className="absolute top-4 right-4 text-white/70 hover:text-white"
-            >
-              <X size={22} />
-            </button>
+      {/* --- Versión para Móvil (Tarjetas Apiladas) --- */}
+      <div className="md:hidden space-y-4">
+        {historialFiltrado.map((h) => (
+          <div key={h.id_historial} className="bg-white/10 rounded-xl p-4 border border-white/20 shadow-md space-y-2">
+            
+            <p className="text-xs text-white/70 flex items-center gap-1"><History size={14}/> 
+                <span className="font-semibold text-yellow-300">Finalizado el: {formatFecha(h.fecha)}</span> 
+                (ID: {h.id_historial})
+            </p>
 
-            <h2 className="text-2xl font-bold mb-4 text-blue-300">
-              Estadísticas Generales 📊
-            </h2>
+            <div className="border-t border-white/10 pt-2 space-y-1">
+                <p className="text-sm font-medium text-blue-300 flex items-center gap-1">Servicio: <span className="text-white">{h.servicio_nombre}</span></p>
 
-            <div className="space-y-4 text-white/80 text-sm leading-relaxed">
-              <p>
-                📌 <b>Clientes activos:</b> 152
-              </p>
-              <p>
-                🔧 <b>Mantenimientos mensuales:</b> 34
-              </p>
-              <p>
-                📅 <b>Reservas completadas este mes:</b> 19
-              </p>
-              <p>
-                🧰 <b>Mecánicos disponibles:</b> 12
-              </p>
-              <p>
-                💰 <b>Ingresos estimados:</b> S/ 12,500
-              </p>
+                <p className="text-sm text-white flex items-center gap-1">
+                    <User size={14}/> Cliente: <span className="font-semibold">{h.cliente}</span>
+                </p>
+
+                <p className="text-sm text-white flex items-center gap-1">
+                    <Wrench size={14}/> Mecánico: {h.mecanico}
+                </p>
+
+                <p className="text-sm text-white/70 flex items-center gap-1">
+                    <Car size={14}/> Vehículo: {h.vehiculo_descripcion} ({h.placa})
+                </p>
             </div>
+            
+            <p className="text-xs italic text-white/50 border-t border-white/10 pt-2">
+                Trabajo: {h.descripcion}
+            </p>
 
-            <button
-              onClick={() => setOpenModal(false)}
-              className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl transition"
-            >
-              Cerrar
-            </button>
+            <div className="flex justify-end pt-2">
+                <p className="text-lg font-bold text-green-400">Total: $ {h.costo}</p>
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+        {historialFiltrado.length === 0 && (
+            <div className="text-center p-6 text-white/70 border border-white/10 rounded-xl">
+                No se encontraron servicios finalizados con el filtro "{filtroBusqueda}".
+            </div>
+        )}
+      </div>
     </div>
   );
 }
