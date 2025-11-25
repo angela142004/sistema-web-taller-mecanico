@@ -271,10 +271,6 @@ export default function CotizacionesAdmin() {
   return (
     // CAMBIO: Fondo principal con un azul oscuro más uniforme y profundo
     <div className="p-4 sm:p-8 space-y-10 min-h-screen text-white"> 
-      
-      <h2 className="text-3xl font-bold mb-6 sm:text-2xl flex items-center gap-2">
-        ⚙️ Gestión de Cotizaciones
-      </h2>
 
       {/* Sección 1: Reservas Pendientes de Cotización INICIAL */}
       <section>
