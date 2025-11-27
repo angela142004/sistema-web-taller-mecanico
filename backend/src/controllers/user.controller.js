@@ -58,6 +58,18 @@ export const registerUser = async (req, res) => {
         },
       });
     }
+    // Si es mecanico
+    // Si es mecanico
+    if (rolFinal === "mecanico") {
+      await prisma.mecanicos.create({
+        data: {
+          id_usuario: newUser.id_usuario,
+          telefono: "", // o el valor que quieras asignar
+          especialidad: "", // por ahora vacío o lo puedes enviar desde el frontend
+          fecha_ingreso: new Date(), // fecha actual
+        },
+      });
+    }
 
     res.status(201).json({
       message: "Usuario registrado correctamente",

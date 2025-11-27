@@ -19,55 +19,6 @@ const money = (n) =>
   });
 const fmtDate = (s) => new Date(s).toLocaleDateString();
 
-/* -------------------- mock (para ver diseño) -------------------- */
-const MOCK = [
-  {
-    id_historial: 1001,
-    fecha: "2025-11-05",
-    descripcion: "Cambio de pastillas y rectificado de discos",
-    costo: 380,
-    mecanico: { usuario: { nombre: "Carlos Ruiz" } },
-    reserva: {
-      estado: "FINALIZADO",
-      servicio: { nombre: "Servicio de frenos" },
-      vehiculo: {
-        modelo: { nombre: "Yaris", marca: { nombre: "Toyota" } },
-      },
-      cotizacion: { total: 380, estado: "aprobado" },
-    },
-  },
-  {
-    id_historial: 1002,
-    fecha: "2025-11-07",
-    descripcion: "Cambio de aceite y filtro",
-    costo: 180,
-    mecanico: { usuario: { nombre: "Luis Mendoza" } },
-    reserva: {
-      estado: "FINALIZADO",
-      servicio: { nombre: "Mantenimiento preventivo" },
-      vehiculo: {
-        modelo: { nombre: "Accent", marca: { nombre: "Hyundai" } },
-      },
-      cotizacion: { total: 180, estado: "aprobado" },
-    },
-  },
-  {
-    id_historial: 1003,
-    fecha: "2025-11-08",
-    descripcion: "Diagnóstico eléctrico completo",
-    costo: 250,
-    mecanico: { usuario: { nombre: "Ernesto Díaz" } },
-    reserva: {
-      estado: "FINALIZADO", // Cambié el estado para mostrar solo los finalizados
-      servicio: { nombre: "Revisión eléctrica" },
-      vehiculo: {
-        modelo: { nombre: "Rio", marca: { nombre: "Kia" } },
-      },
-      cotizacion: { total: 250, estado: "aprobado" },
-    },
-  },
-];
-
 /* -------------------- UI -------------------- */
 function ChipEstado({ estado }) {
   const map = {
@@ -149,7 +100,7 @@ function Select({ options, value, onChange }) {
   );
 }
 
-/* ----------- ControlBar (buscador y filtros) ----------- */
+/* ----------- ControlBar ----------- */
 function ControlBar({ query, setQuery, sortBy, setSortBy, onReload }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3 grid gap-3">
@@ -193,7 +144,7 @@ function ControlBar({ query, setQuery, sortBy, setSortBy, onReload }) {
   );
 }
 
-/* ----------- Modal de detalle ----------- */
+/* ----------- Modal ----------- */
 function Modal({ open, onClose, data }) {
   if (!open || !data) return null;
 
@@ -219,32 +170,41 @@ function Modal({ open, onClose, data }) {
         <div className="space-y-2 text-sm text-white/80">
           <p>
             <span className="font-semibold text-white">Servicio:</span>{" "}
-            {data.reserva?.servicio?.nombre}
+            {data.asignacion?.cotizacion?.reserva?.servicio?.nombre}
           </p>
+
           <p>
             <span className="font-semibold text-white">Vehículo:</span>{" "}
-            {data.reserva?.vehiculo?.modelo?.marca?.nombre}{" "}
-            {data.reserva?.vehiculo?.modelo?.nombre}
+            {
+              data.asignacion?.cotizacion?.reserva?.vehiculo?.modelo?.marca
+                ?.nombre
+            }{" "}
+            {data.asignacion?.cotizacion?.reserva?.vehiculo?.modelo?.nombre}
           </p>
+
           <p>
             <span className="font-semibold text-white">Fecha:</span>{" "}
             {fmtDate(data.fecha)}
           </p>
+
           <p>
             <span className="font-semibold text-white">Mecánico:</span>{" "}
-            {data.mecanico?.usuario?.nombre}
+            {data.asignacion?.mecanico?.usuario?.nombre}
           </p>
+
           <p>
             <span className="font-semibold text-white">Descripción:</span>{" "}
             {data.descripcion}
           </p>
+
           <p>
             <span className="font-semibold text-white">Costo total:</span>{" "}
-            {money(data.costo)}
+            {money(data.asignacion?.cotizacion?.total)}
           </p>
+
           <p>
             <span className="font-semibold text-white">Estado:</span>{" "}
-            <ChipEstado estado={data.reserva?.estado} />
+            <ChipEstado estado={data.asignacion?.estado} />
           </p>
         </div>
 
@@ -255,6 +215,7 @@ function Modal({ open, onClose, data }) {
           >
             <Printer size={16} /> Imprimir / Descargar PDF
           </button>
+
           <button
             onClick={onClose}
             className="h-10 px-4 rounded-xl bg-white/10 hover:bg-white/15"
@@ -267,7 +228,7 @@ function Modal({ open, onClose, data }) {
   );
 }
 
-/* ----------- Tarjeta ----------- */
+/* ----------- Card ----------- */
 function CardHistorial({ row, onView }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between hover:bg-white/10 transition">
@@ -275,20 +236,17 @@ function CardHistorial({ row, onView }) {
         <div className="text-sm text-white/70">
           #{row.id_historial} · {fmtDate(row.fecha)}
         </div>
-        <div className="font-semibold text-white">
-          {row.reserva?.servicio?.nombre || "—"}
-        </div>
-        <div className="text-sm text-white/80">
-          {row.reserva?.vehiculo?.modelo?.nombre} ·{" "}
-          {row.reserva?.vehiculo?.modelo?.marca?.nombre}
-        </div>
+        <div className="font-semibold text-white">{row.servicio}</div>
+        <div className="text-sm text-white/80">{row.vehiculo}</div>
+
         <div className="text-sm text-white/80 mt-1">
-          Mecánico: {row.mecanico?.usuario?.nombre || "—"} · Costo:{" "}
-          <b>{money(row.costo)}</b>
+          Mecánico: {row.mecanico} · Costo: <b>{money(row.costo)}</b>
         </div>
       </div>
+
       <div className="mt-3 sm:mt-0 flex gap-2 items-center">
-        <ChipEstado estado={row.reserva?.estado || "PENDIENTE"} />
+        <ChipEstado estado={row.estado} />
+
         <button
           onClick={() => onView(row)}
           className="h-10 px-4 rounded-xl bg-[#3b138d] hover:bg-[#4316a1]"
@@ -303,26 +261,70 @@ function CardHistorial({ row, onView }) {
 
 /* ----------- Página principal ----------- */
 export default function HistorialCliente() {
-  const [rows] = useState(MOCK);
+  const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("fecha");
   const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 🚀 Cargar datos del backend
+  useEffect(() => {
+    async function load() {
+      try {
+        const id = Number(localStorage.getItem("id_usuario"));
+        const token = localStorage.getItem("token");
+
+        if (!id || !token) {
+          console.error("No hay datos de sesión");
+          setLoading(false);
+          return;
+        }
+
+        const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+
+        const res = await fetch(`${API}/mecanica/historial`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Error al obtener historial");
+
+        let data = await res.json();
+
+        setRows(data);
+      } catch (error) {
+        console.error("Error cargando historial:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
+
     return [...rows]
       .filter((r) =>
-        [r.reserva?.servicio?.nombre, r.mecanico?.usuario?.nombre].some((x) =>
-          x.toLowerCase().includes(q)
+        [r.servicio, r.mecanico, r.vehiculo].some((x) =>
+          x?.toLowerCase().includes(q)
         )
       )
-      .filter((r) => r.reserva?.estado === "FINALIZADO") // Mostrar solo los finalizados
       .sort((a, b) =>
         sortBy === "costo"
           ? b.costo - a.costo
-          : new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+          : new Date(b.fecha) - new Date(a.fecha)
       );
   }, [rows, query, sortBy]);
+
+  if (loading)
+    return (
+      <div className="text-white/80 p-5 animate-pulse">
+        Cargando historial...
+      </div>
+    );
 
   return (
     <div className="space-y-4 text-white max-w-full overflow-hidden">
@@ -346,7 +348,11 @@ export default function HistorialCliente() {
         </div>
       )}
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} data={selected} />
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        data={selected}
+      />
     </div>
   );
 }
