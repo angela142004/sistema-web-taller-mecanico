@@ -7,6 +7,7 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  getUsersByRol,
 } from "../controllers/user.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 
@@ -20,7 +21,8 @@ router.post("/login", loginUser);
 
 // Obtener todos los usuarios (protegido con JWT)
 router.get("/users", verifyToken, getUsers);
-
+// ⭐⭐⭐ Nueva ruta: obtener usuarios por rol
+router.get("/users/rol/:rol", verifyToken, getUsersByRol);
 // Obtener un usuario por ID (protegido con JWT)
 router.get("/users/:id", verifyToken, getUserById);
 

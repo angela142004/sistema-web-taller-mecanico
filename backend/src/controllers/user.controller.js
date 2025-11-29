@@ -11,23 +11,29 @@ const prisma = new PrismaClient();
  */
 export const registerUser = async (req, res) => {
   try {
-    const { nombre, correo, contraseña, rol } = req.body;
+    const {
+      nombre,
+      correo,
+      contraseña,
+      rol,
+      telefono,
+      direccion,
+      especialidad,
+      fechaIngreso,
+    } = req.body;
 
-    // Validación de campos obligatorios
     if (!nombre || !correo || !contraseña) {
       return res
         .status(400)
         .json({ message: "Todos los campos son obligatorios" });
     }
 
-    // Validar rol
     const rolValido = ["cliente", "mecanico", "admin"];
     const rolFinal = rolValido.includes(rol) ? rol : "cliente";
 
-    // Validar si el usuario ya existe (por nombre o correo)
     const existingUser = await prisma.usuarios.findFirst({
       where: {
-        OR: [{ nombre: nombre }, { correo: correo }],
+        OR: [{ nombre }, { correo }],
       },
     });
 
@@ -35,10 +41,9 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Usuario ya existe" });
     }
 
-    // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(contraseña, 10);
 
-    // Crear usuario en la base de datos
+    // Crear usuario
     const newUser = await prisma.usuarios.create({
       data: {
         nombre,
@@ -48,37 +53,32 @@ export const registerUser = async (req, res) => {
       },
     });
 
-    // Si es cliente, crear registro en tabla clientes
+    // Crear cliente
     if (rolFinal === "cliente") {
       await prisma.clientes.create({
         data: {
           id_usuario: newUser.id_usuario,
-          telefono: "", // puede actualizarse después
-          direccion: "",
+          telefono: telefono || "",
+          direccion: direccion || "",
         },
       });
     }
-    // Si es mecanico
-    // Si es mecanico
+
+    // Crear mecánico
     if (rolFinal === "mecanico") {
       await prisma.mecanicos.create({
         data: {
           id_usuario: newUser.id_usuario,
-          telefono: "", // o el valor que quieras asignar
-          especialidad: "", // por ahora vacío o lo puedes enviar desde el frontend
-          fecha_ingreso: new Date(), // fecha actual
+          telefono: telefono || "",
+          especialidad: especialidad || "",
+          fecha_ingreso: fechaIngreso ? new Date(fechaIngreso) : new Date(),
         },
       });
     }
 
     res.status(201).json({
       message: "Usuario registrado correctamente",
-      user: {
-        id_usuario: newUser.id_usuario,
-        nombre: newUser.nombre,
-        correo: newUser.correo,
-        rol: newUser.rol,
-      },
+      user: newUser,
     });
   } catch (error) {
     console.log(error);
@@ -232,5 +232,22 @@ export const deleteUser = async (req, res) => {
   } catch (error) {
     console.error("Error en deleteUser:", error);
     res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+export const getUsersByRol = async (req, res) => {
+  try {
+    const { rol } = req.params;
+
+    const users = await prisma.usuarios.findMany({
+      where: { rol },
+      include: {
+        clientes: true,
+        mecanicos: true,
+      },
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Error interno", error: error.message });
   }
 };

@@ -19,6 +19,9 @@ import asignacionesRoutes from "./src/routes/asignacion.routes.js";
 import asignacionClienteRoutes from "./src/routes/asignacion.cliente.routes.js";
 import historialRoutes from "./src/routes/historial.routes.js";
 
+// ⭐ NUEVO
+import mecanicosRoutes from "./src/routes/mecanicos.routes.js";
+
 dotenv.config();
 
 const app = express();
@@ -52,6 +55,8 @@ app.use("/mecanica/reservas", reservasRoutes);
 
 app.use("/mecanica/cotizaciones", cotizacionesRoutes);
 app.use("/mecanica/cotizaciones-cliente", cotizacionClienteRoutes);
+// 👨‍🔧 ADMIN/MECÁNICO
+app.use("/mecanica/mecanicos", mecanicosRoutes); // ⭐ NUEVO
 
 // 👨‍🔧 ADMIN/MECÁNICO
 app.use("/mecanica/asignaciones", asignacionesRoutes);
@@ -77,6 +82,7 @@ app.get("/mecanica", (req, res) => {
       "/mecanica/login",
       "/mecanica/cotizaciones",
       "/mecanica/cotizaciones-cliente",
+      "/mecanica/mecanicos", // ⭐ Añadido aquí también
       "/mecanica/asignaciones",
       "/mecanica/asignaciones-cliente", // ⭐ corregido aquí también
     ],
