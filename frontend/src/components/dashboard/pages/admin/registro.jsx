@@ -1,3 +1,5 @@
+// FINAL — LISTO PARA COPIAR Y PEGAR
+
 import { useState, useMemo, useEffect } from "react";
 import {
   Users,
@@ -11,14 +13,8 @@ import {
   PlusCircle,
 } from "lucide-react";
 
-// ===============================
-// 🔗 CONFIGURACIÓN DEL BACKEND
-// ===============================
 const API_BASE = "http://localhost:4001/mecanica";
 
-// ===============================
-// 📢 Notificaciones
-// ===============================
 const ActionNotification = ({ message, type, onClose }) => {
   if (!message) return null;
 
@@ -47,19 +43,51 @@ const ActionNotification = ({ message, type, onClose }) => {
   );
 };
 
-// ===============================
-// 🟦 Modal Crear / Editar
-// ===============================
+// ----------------- Modal
 const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
   const isEditing = !!user;
-  const [formData, setFormData] = useState(user || {});
+
+  const [formData, setFormData] = useState({
+    nombre: "",
+    correo: "",
+    contraseña: "",
+    telefono: "",
+    direccion: "",
+    especialidad: "",
+    fechaIngreso: "",
+    id_usuario: undefined,
+  });
 
   useEffect(() => {
-    setFormData(user || {});
+    if (user) {
+      setFormData({
+        id_usuario: user.id_usuario,
+        nombre: user.nombre || "",
+        correo: user.correo || "",
+        contraseña: "",
+        telefono: user.telefono || "",
+        direccion: user.direccion || "",
+        especialidad: user.especialidad || "",
+        fechaIngreso:
+          user.fechaIngreso || user.fecha_ingreso?.split("T")[0] || "",
+      });
+    } else {
+      setFormData({
+        nombre: "",
+        correo: "",
+        contraseña: "",
+        telefono: "",
+        direccion: "",
+        especialidad: "",
+        fechaIngreso: "",
+      });
+    }
   }, [user]);
 
+  if (!isOpen) return null;
+
   const title = isEditing
-    ? `Editar Cuenta (${user.nombre})`
+    ? `Editar Cuenta (${user?.nombre ?? ""})`
     : `Agregar Nueva Cuenta de ${userType.toUpperCase()}`;
 
   const handleChange = (e) => {
@@ -73,9 +101,6 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
-
-  // 🔥 FORMULARIO COMPLETO CON TODOS LOS CAMPOS
   const formFields = [
     { name: "nombre", label: "Nombre Completo", type: "text", required: true },
     {
@@ -84,8 +109,6 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
       type: "email",
       required: true,
     },
-
-    // 🔐 contraseña
     {
       name: "contraseña",
       label: "Contraseña",
@@ -93,17 +116,15 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
       required: !isEditing,
     },
 
-    ...(userType !== "administrador"
+    ...(userType === "cliente"
       ? [
           { name: "telefono", label: "Teléfono", type: "text" },
           { name: "direccion", label: "Dirección", type: "text" },
         ]
-      : []),
-
-    ...(userType === "mecanico"
+      : userType === "mecanico"
       ? [
+          { name: "telefono", label: "Teléfono", type: "text" },
           { name: "especialidad", label: "Especialidad", type: "text" },
-          { name: "fechaIngreso", label: "Fecha Ingreso", type: "date" },
         ]
       : []),
   ];
@@ -128,7 +149,7 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
                 type={field.type}
                 name={field.name}
                 required={field.required}
-                value={formData[field.name] || ""}
+                value={formData[field.name] ?? ""}
                 onChange={handleChange}
                 className="w-full p-2 bg-[#13182b] text-white border border-gray-600 rounded-lg"
               />
@@ -153,24 +174,19 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
   );
 };
 
-// ===============================
-// 🔵 COMPONENTE PRINCIPAL
-// ===============================
+// ----------------- Main component
 export default function App() {
   const [selectedTab, setSelectedTab] = useState("cliente");
   const [usuarios, setUsuarios] = useState({
     cliente: [],
     mecanico: [],
-    administrador: [],
+    admin: [],
   });
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [userToEdit, setUserToEdit] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // ===============================
-  // 🔄 CARGAR USUARIOS
-  // ===============================
   const loadUsuarios = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -183,11 +199,22 @@ export default function App() {
 
       const data = await res.json();
 
-      // 🔥 NORMALIZAR DATOS AQUÍ
-      const normalized = data.map((u) => ({
-        ...u,
-        fechaIngreso: u.fecha_ingreso ?? "",
-      }));
+      const normalized = data.map((u) => {
+        const cliente = u.cliente ?? null;
+        const mecanico = u.mecanico ?? null;
+
+        return {
+          ...u,
+          displayId:
+            cliente?.id_cliente ?? mecanico?.id_mecanico ?? u.id_usuario,
+          telefono: cliente?.telefono ?? mecanico?.telefono ?? "",
+          direccion: cliente?.direccion ?? "",
+          especialidad: mecanico?.especialidad ?? "",
+          fechaIngreso: mecanico?.fecha_ingreso
+            ? mecanico.fecha_ingreso.split("T")[0]
+            : "",
+        };
+      });
 
       setUsuarios((prev) => ({ ...prev, [selectedTab]: normalized }));
     } catch (err) {
@@ -200,24 +227,31 @@ export default function App() {
     loadUsuarios();
   }, [selectedTab]);
 
-  // ===============================
-  // 🟢 GUARDAR / EDITAR
-  // ===============================
   const handleSaveUser = async (data, isEditing) => {
     try {
       const token = localStorage.getItem("token");
 
-      let payload = { ...data, rol: selectedTab };
+      let payload = {
+        nombre: data.nombre,
+        correo: data.correo,
+        rol: selectedTab,
+      };
 
-      // ❗ No enviamos contraseña si está vacío o si estamos editando
-      if (isEditing) {
-        delete payload.contraseña;
-      } else {
-        if (!payload.contraseña || payload.contraseña.trim() === "") {
-          showNotification("La contraseña es obligatoria", "error");
-          return;
-        }
+      if (data.contraseña && data.contraseña.trim() !== "") {
+        payload.contraseña = data.contraseña;
       }
+
+      if (selectedTab === "cliente") {
+        payload.telefono = data.telefono || "";
+        payload.direccion = data.direccion || "";
+      }
+
+      if (selectedTab === "mecanico") {
+        payload.telefono = data.telefono || "";
+        payload.especialidad = data.especialidad || "";
+      }
+
+      if (isEditing && !data.contraseña) delete payload.contraseña;
 
       const url = isEditing
         ? `${API_BASE}/users/${data.id_usuario}`
@@ -239,25 +273,25 @@ export default function App() {
       await loadUsuarios();
       showNotification(
         isEditing
-          ? "Usuario editado correctamente"
-          : "Usuario creado con éxito",
+          ? "Usuario actualizado correctamente"
+          : "Usuario creado correctamente",
         "success"
       );
-    } catch {
+    } catch (err) {
+      console.error(err);
       showNotification("Error al guardar usuario", "error");
     }
   };
 
-  // ===============================
-  // 🔴 ELIMINAR
-  // ===============================
-  const handleDelete = async (usuarios) => {
+  const handleDelete = async (user) => {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(`${API_BASE}/users/${usuarios.id_usuario}`, {
+      const res = await fetch(`${API_BASE}/users/${user.id_usuario}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!res.ok) throw new Error();
@@ -265,13 +299,12 @@ export default function App() {
       setUsuarios((prev) => ({
         ...prev,
         [selectedTab]: prev[selectedTab].filter(
-          (u) => u.id_usuario !== usuarios.id_usuario
+          (u) => u.id_usuario !== user.id_usuario
         ),
       }));
 
       showNotification("Usuario eliminado", "success");
-    } catch (err) {
-      console.error(err);
+    } catch {
       showNotification("Error al eliminar usuario", "error");
     }
   };
@@ -281,9 +314,6 @@ export default function App() {
     setTimeout(() => setNotification({ message: "", type: "" }), 3000);
   };
 
-  // ===============================
-  // 🔍 BUSQUEDA
-  // ===============================
   const filteredUsuarios = useMemo(() => {
     return usuarios[selectedTab].filter((u) =>
       Object.values(u).some((v) =>
@@ -297,7 +327,7 @@ export default function App() {
   const tabIcons = {
     cliente: Users,
     mecanico: Wrench,
-    administrador: Settings,
+    admin: Settings,
   };
 
   return (
@@ -308,9 +338,9 @@ export default function App() {
         onClose={() => setNotification({ message: "", type: "" })}
       />
 
-      {/* TABS */}
+      {/* Tabs */}
       <div className="flex gap-3 mb-6">
-        {["cliente", "mecanico", "administrador"].map((t) => {
+        {["cliente", "mecanico", "admin"].map((t) => {
           const Icon = tabIcons[t];
           return (
             <button
@@ -329,7 +359,7 @@ export default function App() {
         })}
       </div>
 
-      {/* BUSCADOR */}
+      {/* Buscador */}
       <div className="flex items-center bg-[#1b223b] p-2 rounded-lg mb-4">
         <Search className="text-gray-400" />
         <input
@@ -340,7 +370,6 @@ export default function App() {
         />
       </div>
 
-      {/* BOTÓN AGREGAR */}
       <button
         onClick={() => {
           setUserToEdit(null);
@@ -348,11 +377,10 @@ export default function App() {
         }}
         className="bg-blue-600 text-white px-4 py-2 rounded-lg mb-4 flex items-center gap-2"
       >
-        <PlusCircle size={18} />
-        Nuevo {selectedTab}
+        <PlusCircle size={18} /> Nuevo {selectedTab}
       </button>
 
-      {/* TABLA */}
+      {/* Tabla */}
       <div className="overflow-x-auto bg-[#11172b] rounded-xl shadow-lg border border-gray-700">
         <table className="min-w-full text-left">
           <thead>
@@ -362,7 +390,7 @@ export default function App() {
               <th className="px-6 py-3">Correo</th>
               <th className="px-6 py-3">Contraseña</th>
 
-              {selectedTab !== "administrador" && (
+              {selectedTab === "cliente" && (
                 <>
                   <th className="px-6 py-3">Teléfono</th>
                   <th className="px-6 py-3">Dirección</th>
@@ -371,29 +399,31 @@ export default function App() {
 
               {selectedTab === "mecanico" && (
                 <>
+                  <th className="px-6 py-3">Teléfono</th>
                   <th className="px-6 py-3">Especialidad</th>
                   <th className="px-6 py-3">Fecha Ingreso</th>
                 </>
               )}
 
-              <th className="px-6 py-3 text-center">Acciones</th>
+              <th className="px-6 py-3 w-36 text-center">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
-            {filteredUsuarios.map((u) => (
+            {filteredUsuarios.map((u, index) => (
               <tr
                 key={u.id_usuario}
                 className="border-b border-gray-700 hover:bg-[#1f2942] transition"
               >
-                <td className="px-6 py-4 text-white">{u.id_usuario}</td>
+                <td className="px-6 py-4 text-white">{index + 1}</td>
+
                 <td className="px-6 py-4 text-white">{u.nombre}</td>
                 <td className="px-6 py-4 text-gray-300">{u.correo}</td>
 
-                {/* OJO: backend devuelve password */}
-                <td className="px-6 py-4 text-gray-300">{u.password}</td>
+                {/* Mostramos solo puntitos */}
+                <td className="px-6 py-4 text-gray-300">{"●".repeat(8)}</td>
 
-                {selectedTab !== "administrador" && (
+                {selectedTab === "cliente" && (
                   <>
                     <td className="px-6 py-4 text-gray-300">{u.telefono}</td>
                     <td className="px-6 py-4 text-gray-300">{u.direccion}</td>
@@ -402,6 +432,7 @@ export default function App() {
 
                 {selectedTab === "mecanico" && (
                   <>
+                    <td className="px-6 py-4 text-gray-300">{u.telefono}</td>
                     <td className="px-6 py-4 text-gray-300">
                       {u.especialidad}
                     </td>
@@ -411,7 +442,7 @@ export default function App() {
                   </>
                 )}
 
-                <td className="px-6 py-4 flex gap-3 justify-center">
+                <td className="px-6 py-4 w-36 flex gap-3 justify-center">
                   <button
                     onClick={() => {
                       setUserToEdit(u);
@@ -435,7 +466,6 @@ export default function App() {
         </table>
       </div>
 
-      {/* MODAL */}
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

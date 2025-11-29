@@ -195,10 +195,34 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, correo, contraseña, rol } = req.body;
 
-    const updateData = { nombre, correo, rol };
-    if (contraseña) {
+    const existingUser = await prisma.usuarios.findUnique({
+      where: { id_usuario: parseInt(id) },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const {
+      nombre,
+      correo,
+      contraseña,
+      rol,
+      telefono,
+      direccion,
+      especialidad,
+      fecha_ingreso,
+    } = req.body;
+
+    // ========= Actualizar tabla usuarios =========
+    const updateData = {
+      nombre,
+      correo,
+      rol: rol || existingUser.rol,
+    };
+
+    if (contraseña && contraseña.trim() !== "") {
       updateData.contraseña = await bcrypt.hash(contraseña, 10);
     }
 
@@ -207,9 +231,61 @@ export const updateUser = async (req, res) => {
       data: updateData,
     });
 
+    const finalRole = updatedUser.rol;
+
+    // ========= Actualizar cliente =========
+    if (finalRole === "cliente") {
+      await prisma.clientes.updateMany({
+        where: { id_usuario: updatedUser.id_usuario },
+        data: {
+          telefono: telefono ?? undefined,
+          direccion: direccion ?? undefined,
+        },
+      });
+    }
+
+    // ========= Actualizar mecanico =========
+    if (finalRole === "mecanico") {
+      await prisma.mecanicos.updateMany({
+        where: { id_usuario: updatedUser.id_usuario },
+        data: {
+          telefono: telefono ?? undefined,
+          especialidad: especialidad ?? undefined,
+          fecha_ingreso: fecha_ingreso ?? undefined,
+        },
+      });
+    }
+
+    // ========= DEVOLVER TODO COMPLETO =========
+    const fullUser = await prisma.usuarios.findUnique({
+      where: { id_usuario: updatedUser.id_usuario },
+      include: {
+        cliente: true,
+        mecanico: true,
+      },
+    });
+
+    // ...
     res.json({
       message: "Usuario actualizado correctamente",
-      user: updatedUser,
+      user: {
+        ...updatedUser,
+
+        // Agregar datos extra según rol
+        cliente:
+          finalRole === "cliente"
+            ? await prisma.clientes.findUnique({
+                where: { id_usuario: updatedUser.id_usuario },
+              })
+            : null,
+
+        mecanico:
+          finalRole === "mecanico"
+            ? await prisma.mecanicos.findUnique({
+                where: { id_usuario: updatedUser.id_usuario },
+              })
+            : null,
+      },
     });
   } catch (error) {
     console.error("Error en updateUser:", error);
@@ -217,6 +293,9 @@ export const updateUser = async (req, res) => {
   }
 };
 
+/**
+ * @desc Eliminar usuario
+ */
 /**
  * @desc Eliminar usuario
  */
@@ -228,12 +307,17 @@ export const deleteUser = async (req, res) => {
       where: { id_usuario: parseInt(id) },
     });
 
-    res.json({ message: "Usuario eliminado correctamente" });
+    res.json({
+      message: "Usuario eliminado correctamente",
+    });
   } catch (error) {
     console.error("Error en deleteUser:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    res.status(500).json({
+      message: "Error interno del servidor",
+    });
   }
 };
+
 export const getUsersByRol = async (req, res) => {
   try {
     const { rol } = req.params;
@@ -241,13 +325,14 @@ export const getUsersByRol = async (req, res) => {
     const users = await prisma.usuarios.findMany({
       where: { rol },
       include: {
-        clientes: true,
-        mecanicos: true,
+        cliente: true,
+        mecanico: true,
       },
     });
 
     res.json(users);
   } catch (error) {
+    console.error("Error en getUsersByRol:", error);
     res.status(500).json({ message: "Error interno", error: error.message });
   }
 };

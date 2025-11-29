@@ -31,13 +31,17 @@ enum EstadoAsignacion {
   finalizado
 }
 
-
 enum EstadoCotizacion {
   PENDIENTE
   CONFIRMADO
   RECHAZADO
 }
 
+enum EstadoAtencion {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+}
 
 // ===================== MODELOS =====================
 
@@ -45,7 +49,7 @@ model Usuarios {
   id_usuario  Int    @id @default(autoincrement())
   nombre      String @db.VarChar(100)
   correo      String @unique @db.VarChar(100)
-  contraseña String @db.VarChar(255)
+  contraseña  String @db.VarChar(255)
   rol         Rol
 
   cliente  Clientes?
@@ -60,7 +64,7 @@ model Clientes {
   telefono   String @db.VarChar(20)
   direccion  String @db.VarChar(150)
 
-  usuario   Usuarios    @relation(fields: [id_usuario], references: [id_usuario])
+  usuario   Usuarios  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
   vehiculos Vehiculos[]
   reservas  Reservas[]
 
@@ -74,7 +78,7 @@ model Mecanicos {
   especialidad  String   @db.VarChar(100)
   fecha_ingreso DateTime @db.Date
 
-  usuario      Usuarios              @relation(fields: [id_usuario], references: [id_usuario])
+  usuario      Usuarios       @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
   asignaciones Asignaciones[]
 
   @@map("Mecanicos")
@@ -87,7 +91,7 @@ model Vehiculos {
   anio        Int
   placa       String @unique @db.VarChar(15)
 
-  cliente  Clientes   @relation(fields: [id_cliente], references: [id_cliente])
+  cliente  Clientes   @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade)
   modelo   Modelos    @relation(fields: [id_modelo], references: [id_modelo])
   reservas Reservas[]
 
@@ -136,7 +140,7 @@ model Servicios {
   id_servicio Int     @id @default(autoincrement())
   nombre      String  @unique @db.VarChar(100)
   descripcion String?
-  duracion    Int     @default(60) // duración en minutos ⏱️
+  duracion    Int     @default(60)
 
   reservas Reservas[]
 
@@ -144,19 +148,18 @@ model Servicios {
 }
 
 model Reservas {
-  id_reserva  Int            @id @default(autoincrement())
+  id_reserva  Int      @id @default(autoincrement())
   id_cliente  Int
   id_vehiculo Int
   id_servicio Int
   fecha       DateTime @db.Date
   hora_inicio String
   hora_fin    String
-
   estado      EstadoAtencion @default(PENDIENTE)
 
-  cliente    Clientes              @relation(fields: [id_cliente], references: [id_cliente])
-  vehiculo   Vehiculos             @relation(fields: [id_vehiculo], references: [id_vehiculo])
-  servicio   Servicios             @relation(fields: [id_servicio], references: [id_servicio])
+  cliente    Clientes   @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade)
+  vehiculo   Vehiculos  @relation(fields: [id_vehiculo], references: [id_vehiculo], onDelete: Cascade)
+  servicio   Servicios  @relation(fields: [id_servicio], references: [id_servicio])
   cotizacion Cotizaciones?
 
   @@map("Reservas")
@@ -164,31 +167,29 @@ model Reservas {
 
 model Asignaciones {
   id_asignacion    Int              @id @default(autoincrement())
-  id_cotizacion    Int              // 🔥 AHORA SE RELACIONA CON COTIZACIONES
+  id_cotizacion    Int
   id_mecanico      Int
-  fecha_asignacion DateTime         @default(now()) @db.Date   // 🔥 FECHA AUTOMÁTICA
+  fecha_asignacion DateTime         @default(now()) @db.Date
   estado           EstadoAsignacion
-  observaciones    String?          // 🔥 OPCIONAL
+  observaciones    String?
 
-  cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion])
-  mecanico   Mecanicos    @relation(fields: [id_mecanico],  references: [id_mecanico])
-  historial   Historial_Servicios? // <-- relación agregada
+  cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion], onDelete: Cascade)
+  mecanico   Mecanicos    @relation(fields: [id_mecanico], references: [id_mecanico], onDelete: Cascade)
+  historial  Historial_Servicios?
 
   @@map("Asignaciones")
 }
 
-
 model Historial_Servicios {
-  id_historial   Int           @id @default(autoincrement())
-  id_asignacion  Int           @unique  // 1 historial por asignación finalizada
-  fecha          DateTime      @default(now()) @db.Date
-  descripcion    String?       // opcional: resumen del trabajo realizado
+  id_historial   Int      @id @default(autoincrement())
+  id_asignacion  Int      @unique
+  fecha          DateTime @default(now()) @db.Date
+  descripcion    String?
 
-  asignacion     Asignaciones  @relation(fields: [id_asignacion], references: [id_asignacion])
+  asignacion     Asignaciones @relation(fields: [id_asignacion], references: [id_asignacion], onDelete: Cascade)
 
   @@map("Historial_Servicios")
 }
-
 
 model Cotizaciones {
   id_cotizacion Int              @id @default(autoincrement())
@@ -197,13 +198,12 @@ model Cotizaciones {
   total         Decimal          @db.Decimal(10, 2)
   estado        EstadoCotizacion
 
-  reserva      Reservas   @relation(fields: [id_reserva], references: [id_reserva])  // ✔ RELACIÓN CORRECTA
+  reserva      Reservas        @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade)
   factura      Facturas?
-  asignaciones Asignaciones[]     // 🔥 NUEVA RELACIÓN
+  asignaciones Asignaciones[]
 
   @@map("Cotizaciones")
 }
-
 
 model Facturas {
   id_factura    Int      @id @default(autoincrement())
@@ -211,13 +211,7 @@ model Facturas {
   fecha         DateTime @db.Date
   total         Decimal  @db.Decimal(10, 2)
 
-  cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion])
+  cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion], onDelete: Cascade)
 
   @@map("Facturas")
-}
-
-enum EstadoAtencion {
-  PENDIENTE
-  CONFIRMADA
-  CANCELADA
 }
