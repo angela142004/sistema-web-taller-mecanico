@@ -379,9 +379,60 @@ export default function App() {
       >
         <PlusCircle size={18} /> Nuevo {selectedTab}
       </button>
+      {/* Vista en TARJETAS para móviles */}
+      <div className="block md:hidden space-y-4 mt-4">
+        {filteredUsuarios.map((u, index) => (
+          <div
+            key={u.id_usuario}
+            className="bg-[#1b223b] p-4 rounded-xl shadow border border-gray-700"
+          >
+            <p className="text-sm text-gray-400">ID: {index + 1}</p>
+
+            <h3 className="text-lg font-bold text-white">{u.nombre}</h3>
+
+            <p className="text-gray-300 text-sm">{u.correo}</p>
+
+            {/* Campos dinámicos según el tipo de usuario */}
+            {selectedTab === "cliente" && (
+              <>
+                <p className="text-gray-300 mt-2">📞 {u.telefono}</p>
+                <p className="text-gray-300">📍 {u.direccion}</p>
+              </>
+            )}
+
+            {selectedTab === "mecanico" && (
+              <>
+                <p className="text-gray-300 mt-2">📞 {u.telefono}</p>
+                <p className="text-gray-300">🔧 {u.especialidad}</p>
+                <p className="text-gray-300">📅 {u.fechaIngreso}</p>
+              </>
+            )}
+
+            <div className="flex justify-end gap-3 mt-3">
+              <button
+                onClick={() => {
+                  setUserToEdit(u);
+                  setIsModalOpen(true);
+                }}
+                className="p-2 bg-blue-700/40 text-blue-300 rounded-lg"
+              >
+                <Edit2 size={18} />
+              </button>
+
+              <button
+                onClick={() => handleDelete(u)}
+                className="p-2 bg-red-700/40 text-red-300 rounded-lg"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Tabla */}
-      <div className="overflow-x-auto bg-[#11172b] rounded-xl shadow-lg border border-gray-700">
+      {/* Tabla para PC / Laptop */}
+      <div className="hidden md:block overflow-x-auto bg-[#11172b] rounded-xl shadow-lg border border-gray-700">
         <table className="min-w-full text-left">
           <thead>
             <tr className="bg-[#1b223b] text-gray-300 text-sm uppercase tracking-wider">
