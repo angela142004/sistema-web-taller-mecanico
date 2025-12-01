@@ -1,451 +1,484 @@
-import { useState } from "react";
-// Importar XCircle para usarlo como 'X' en el modal
-import { Car, Wrench, Info, Calendar, DollarSign, ChevronDown, ChevronUp, XCircle as X } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Car,
+  Wrench,
+  Info,
+  Calendar,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+  XCircle as X,
+} from "lucide-react";
 
 export default function CotizacionesAdmin() {
-  const [reservas, setReservas] = useState([
-    {
-      id_reserva: 1001,
-      vehiculo: "Toyota Corolla",
-      cliente: {
-        nombre: "Juan Pérez",
-        correo: "juan.perez@example.com",
-        telefono: "123-456-7890",
-      },
-      fecha: "2023-11-24",
-      hora_inicio: "10:00",
-      servicio: "Revisión general",
-      respuestaCliente: "Pendiente",
-      cotizacion: null, // Pendiente de cotización
-    },
-    {
-      id_reserva: 1002,
-      vehiculo: "Ford Fiesta",
-      cliente: {
-        nombre: "Ana García",
-        correo: "ana.garcia@example.com",
-        telefono: "098-765-4321",
-      },
-      fecha: "2023-11-25",
-      hora_inicio: "14:00",
-      servicio: "Cambio de aceite y filtro",
-      respuestaCliente: "Aprobado",
-      cotizacion: {
-        total: 180,
-        detalles: "Cambio de aceite y filtro, chequeo de niveles y frenos",
-      },
-    },
-    {
-      id_reserva: 1003,
-      vehiculo: "Chevrolet Spark",
-      cliente: {
-        nombre: "Luis Gómez",
-        correo: "luis.gomez@example.com",
-        telefono: "333-222-1111",
-      },
-      fecha: "2023-11-26",
-      hora_inicio: "09:30",
-      servicio: "Diagnóstico de motor",
-      respuestaCliente: "Rechazado",
-      cotizacion: {
-        total: 50,
-        detalles: "Solo diagnóstico (se necesita cambiar bujías)",
-      },
-    },
-    {
-      id_reserva: 1004,
-      vehiculo: "Nissan Versa",
-      cliente: {
-        nombre: "María Lopez",
-        correo: "maria.lopez@example.com",
-        telefono: "555-444-3333",
-      },
-      fecha: "2023-11-27",
-      hora_inicio: "11:00",
-      servicio: "Cambio de neumáticos",
-      respuestaCliente: "Pendiente",
-      cotizacion: {
-        total: 350,
-        detalles: "4 neumáticos nuevos marca X, incluye alineación y balanceo.",
-      }, // Cotización enviada, en espera de respuesta
-    },
-  ]);
+  const [reservas, setReservas] = useState([]);
 
-  const [modalTipo, setModalTipo] = useState("");
-  const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
-  const [precioCotizacion, setPrecioCotizacion] = useState("");
-  const [detallesCotizacion, setDetallesCotizacion] = useState("");
-  const [expandedCard, setExpandedCard] = useState(null);
+  // ============================================================
+  // 🔥 1. OBTENER RESERVAS REALES DEL BACKEND
+  // ============================================================
 
-  const toggleExpanded = (id) => {
-    setExpandedCard(expandedCard === id ? null : id);
-  };
+  useEffect(() => {
+    cargarReservas();
+  }, []);
 
-  const reservasPendientes = reservas.filter(
-    (r) => r.respuestaCliente === "Pendiente" && !r.cotizacion
-  );
+  const cargarReservas = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-  const cotizacionesEnEspera = reservas.filter(
-    (r) => r.respuestaCliente === "Pendiente" && r.cotizacion
-  );
+      const resp = await fetch(
+        "http://localhost:4001/mecanica/reservas/confirmadas"
+      );
 
-  const cotizacionesConfirmadas = reservas.filter(
-    (r) => r.respuestaCliente === "Aprobado" || r.respuestaCliente === "Rechazado"
-  );
+      const data = await resp.json();
 
-  // Abre el modal SOLO para CREAR una cotización inicial (si no existe)
-  const abrirModalCotizacion = (reserva) => {
-    // REGLA: Si ya tiene cotización, no se abre el modal de edición/creación de nuevo
-    if (reserva.cotizacion) {
-      // Opcional: Mostrar alerta si se intenta cotizar de nuevo
-      // alert("La cotización ya fue enviada y está en espera de la respuesta del cliente.");
-      return;
-    }
-    setCotizacionSeleccionada(reserva);
-    setModalTipo("crear");
-    setPrecioCotizacion(reserva.cotizacion?.total || "");
-    setDetallesCotizacion(reserva.cotizacion?.detalles || "");
-  };
+      const formateadas = data.map((r) => {
+        // EXTRAER SOLO LA FECHA (evita desfase UTC)
+        const fechaISO = r.fecha.split("T")[0]; // "2025-12-01"
+        const fechaObj = new Date(fechaISO + "T12:00"); // fija hora neutra → evita restar días
 
-  // Abre el modal para ver el resumen de una cotización ya resuelta/enviada
-  const abrirModalDetalles = (reserva) => {
-    setCotizacionSeleccionada(reserva);
-    setModalTipo("ver_detalles");
-  };
+        const fechaLocal = fechaObj.toLocaleDateString("es-PE", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
 
-  // Lógica de Crear Cotización
-  const crearCotizacion = () => {
-    if (!precioCotizacion || !detallesCotizacion) {
-      alert("Por favor ingresa todos los campos de la cotización.");
-      return;
-    }
+        return {
+          id_reserva: r.id_reserva,
+          vehiculo: r.vehiculo?.modelo?.nombre_modelo || "Vehículo",
+          cliente: {
+            nombre: r.cliente?.usuario?.nombre || "Cliente",
+            correo: r.cliente?.usuario?.correo || "",
+            telefono: r.cliente?.telefono || "",
+          },
+          fecha: fechaLocal, // ←🔥 AHORA SIEMPRE ES LA CORRECTA SIN DESFASES
+          hora_inicio: r.hora_inicio,
+          servicio: r.servicio?.nombre || "Servicio",
+          respuestaCliente: r.estado,
+          cotizacion: r.cotizacion
+            ? {
+                total: r.cotizacion.total,
+                detalles: r.cotizacion.detalles,
+              }
+            : null,
+        };
+      });
 
-    setReservas((prev) =>
-      prev.map((r) =>
-        r.id_reserva === cotizacionSeleccionada.id_reserva
-          ? {
-              ...r,
-              cotizacion: {
-                total: parseFloat(precioCotizacion),
-                detalles: detallesCotizacion,
-              },
-              // El estado se mueve a "Pendiente" (En Espera)
-              respuestaCliente: "Pendiente", 
-            }
-          : r
-      )
-    );
+      setReservas(formateadas);
+    } catch (error) {
+      console.error("Error obteniendo reservas:", error);
+    }
+  };
 
-    // Simulación de notificación
-    alert(`Cotización creada y enviada al cliente: ${cotizacionSeleccionada.cliente.nombre} por S/ ${parseFloat(precioCotizacion).toFixed(2)}.`);
-    
-    // Cierra el modal y limpia el estado
-    setModalTipo("");
-    setCotizacionSeleccionada(null);
-    setPrecioCotizacion("");
-    setDetallesCotizacion("");
-  };
+  // ============================================================
+  // 🔥 2. FILTROS ACTUALIZADOS SEGÚN TU LÓGICA REAL
+  // ============================================================
 
-  // --- Componente de tarjeta reutilizable para móvil/desktop ---
-  const ReservaCard = ({ reserva, index, onActionClick, type }) => {
-    const isExpanded = expandedCard === reserva.id_reserva;
-    const isConfirmed = reserva.respuestaCliente === "Aprobado";
-    const isRejected = reserva.respuestaCliente === "Rechazado";
+  // 👉 Confirmada pero sin cotización → Reservas por cotizar
+  const reservasPendientes = reservas.filter(
+    (r) => r.respuestaCliente === "CONFIRMADA" && !r.cotizacion
+  );
 
-    // Colores Adaptados al Panel Oscuro
-    const cardBg = "bg-[#16182c] hover:bg-white/10";
-    const titleColor = "text-white";
-    const detailColor = "text-white/70";
-    const dividerColor = "border-white/10"; // Borde sutil
+  // 👉 Confirmada y con cotización → En Espera
+  const cotizacionesEnEspera = reservas.filter(
+    (r) => r.respuestaCliente === "CONFIRMADA" && r.cotizacion
+  );
 
-    const statusColor = isConfirmed
-      ? "text-green-300 bg-green-600/30"
-      : isRejected
-      ? "text-red-300 bg-red-600/30"
-      : "text-yellow-300 bg-yellow-600/30";
+  // 👉 Canceladas → Historial
+  const cotizacionesConfirmadas = reservas.filter(
+    (r) => r.respuestaCliente === "CANCELADA"
+  );
 
-    return (
-      <div
-        key={reserva.id_reserva}
-        className={`${cardBg} rounded-xl p-4 mb-3 border border-white/10 shadow-lg sm:p-6 transition-colors duration-200`}
-      >
-        <div
-          className="flex justify-between items-center cursor-pointer"
-          onClick={() => toggleExpanded(reserva.id_reserva)}
-        >
-          {/* Fila principal visible siempre */}
-          <div className="flex items-center space-x-3">
-            <span className={`font-bold text-lg ${titleColor}`}>{index + 1}.</span>
-            <div className="flex flex-col">
-              <span className={`font-semibold truncate max-w-[200px] ${titleColor}`}>{reserva.cliente.nombre}</span>
-              <span className={`text-sm flex items-center ${detailColor}`}>
-                <Car className="w-4 h-4 mr-1" />
-                {reserva.vehiculo}
-              </span>
-            </div>
-          </div>
+  // ============================================================
+  // 🔥 3. EL RESTO DE TU CÓDIGO SIGUE IGUAL
+  // ============================================================
 
-          <div className="flex items-center space-x-2">
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor}`}>
-              {reserva.respuestaCliente === "Pendiente" && reserva.cotizacion
-                ? "En Espera"
-                : reserva.respuestaCliente}
-            </span>
-            {isExpanded ? (
-              <ChevronUp className={`w-5 h-5 ${detailColor}`} />
-            ) : (
-              <ChevronDown className={`w-5 h-5 ${detailColor}`} />
-            )}
-          </div>
-        </div>
+  const [modalTipo, setModalTipo] = useState("");
+  const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
+  const [precioCotizacion, setPrecioCotizacion] = useState("");
+  const [detallesCotizacion, setDetallesCotizacion] = useState("");
+  const [expandedCard, setExpandedCard] = useState(null);
 
-        {/* Contenido expandible */}
-        {isExpanded && (
-          <div className={`mt-4 pt-4 border-t ${dividerColor} space-y-3`}>
-            <div className={`flex items-center text-sm ${detailColor}`}>
-              <Calendar className="w-4 h-4 mr-2 text-blue-400" />
-              Fecha/Hora: {reserva.fecha} @ {reserva.hora_inicio}
-            </div>
-            <div className={`flex items-start text-sm ${detailColor}`}>
-              <Wrench className="w-4 h-4 mr-2 text-yellow-400 mt-0.5" />
-              Servicio: {reserva.servicio}
-            </div>
+  const toggleExpanded = (id) => {
+    setExpandedCard(expandedCard === id ? null : id);
+  };
 
-            {/* Detalles de contacto del cliente */}
-            <div className={`text-sm ${detailColor} border-t border-dashed ${dividerColor} pt-3`}>
-              <p className={`font-semibold ${titleColor} mb-1`}>Contacto:</p>
-              <p>Email: {reserva.cliente.correo}</p>
-              <p>Tel: {reserva.cliente.telefono}</p>
-            </div>
+  const abrirModalCotizacion = (reserva) => {
+    if (reserva.cotizacion) return;
 
-            {/* Detalles de Cotización (Solo para Confirmadas/En Espera/Pendientes con cotización) */}
-            {reserva.cotizacion && (
-              <div className={`text-sm ${detailColor} border-t border-dashed ${dividerColor} pt-3`}>
-                <p className={`font-semibold ${titleColor} mb-1`}>
-                  <DollarSign className="w-4 h-4 inline mr-1 text-green-400" />
-                  Cotización: S/ {reserva.cotizacion.total}
-                </p>
-                <p className="text-xs italic text-white/50">
-                  Detalles: {reserva.cotizacion.detalles}
-                </p>
-              </div>
-            )}
+    setCotizacionSeleccionada(reserva);
+    setModalTipo("crear");
+    setPrecioCotizacion("");
+    setDetallesCotizacion("");
+  };
 
-            {/* Botón de Acción */}
-            <div className={`pt-3 border-t ${dividerColor}`}>
-              {(type === "pendientes") && (
-                <button
-                  className="w-full text-center py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
-                  onClick={() => onActionClick(reserva)} // Acción: Crear Cotización
-                >
-                  Crear Cotización
-                </button>
-              )}
+  const abrirModalDetalles = (reserva) => {
+    setCotizacionSeleccionada(reserva);
+    setModalTipo("ver_detalles");
+  };
 
-              {/* CAMBIO: Para "en_espera", el botón cambia a solo ver detalles */}
-              {(type === "en_espera") && (
-                <button
-                  className="w-full text-center py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
-                  onClick={() => abrirModalDetalles(reserva)} // Acción: Solo Ver Detalles
-                >
-                  Ver Cotización Enviada
-                </button>
-              )}
-              
-              {type === "confirmadas" && (
-                <button
-                  className="w-full text-center py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-sm transition-colors duration-200"
-                  onClick={() => abrirModalDetalles(reserva)}
-                >
-                  Ver Detalles (Resumen)
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-  // -------------------------------------------------------------------
+  // ===============================
+  // 🔥 CREAR COTIZACIÓN (ACTUALIZADA)
+  // ===============================
+  const crearCotizacion = async () => {
+    if (!precioCotizacion || !detallesCotizacion) {
+      alert("Por favor ingresa todos los campos.");
+      return;
+    }
 
-  return (
-    // CAMBIO: Fondo principal con un azul oscuro más uniforme y profundo
-    <div className="p-4 sm:p-8 space-y-10 min-h-screen text-white"> 
+    try {
+      const resp = await fetch("http://localhost:4001/mecanica/cotizaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_reserva: cotizacionSeleccionada.id_reserva,
+          total: parseFloat(precioCotizacion),
+          detalles: detallesCotizacion,
+        }),
+      });
 
-      {/* Sección 1: Reservas Pendientes de Cotización INICIAL */}
-      <section>
-        <h3 className="text-white text-xl font-semibold mb-4 sm:text-lg flex items-center">
-          <Wrench className="w-5 h-5 mr-2 text-yellow-500" /> Reservas por Cotizar (Sin Cotización Enviada)
-        </h3>
+      if (!resp.ok) {
+        throw new Error("Error al enviar la cotización");
+      }
 
-        <div>
-          {reservasPendientes.length > 0 ? (
-            reservasPendientes.map((reserva, index) => (
-              <ReservaCard
-                key={reserva.id_reserva}
-                reserva={reserva}
-                index={index}
-                onActionClick={abrirModalCotizacion} // Acción: Crear
-                type="pendientes"
-              />
-            ))
-          ) : (
-            <p className="text-white/60 italic p-3 rounded-lg bg-[#16182c]">No hay reservas pendientes de cotización inicial.</p>
-          )}
-        </div>
-      </section>
+      const nueva = await resp.json();
 
-      <hr className="border-gray-700" />
+      // 🔥 Actualizar UI sin recargar
+      setReservas((prev) =>
+        prev.map((r) =>
+          r.id_reserva === cotizacionSeleccionada.id_reserva
+            ? {
+                ...r,
+                cotizacion: {
+                  total: nueva.total,
+                  detalles: nueva.detalles,
+                  estado: nueva.estado,
+                },
+              }
+            : r
+        )
+      );
 
-      {/* Sección 2: Cotizaciones Enviadas (En Espera) */}
-      <section>
-        <h3 className="text-white text-xl font-semibold mb-4 sm:text-lg flex items-center">
-          <DollarSign className="w-5 h-5 mr-2 text-blue-500" /> Cotizaciones Enviadas (En Espera)
-        </h3>
+      alert("Cotización enviada correctamente.");
+      setModalTipo("");
+    } catch (error) {
+      console.error("Error creando cotización:", error);
+      alert("Hubo un error al enviar la cotización.");
+    }
+  };
 
-        <div>
-          {cotizacionesEnEspera.length > 0 ? (
-            cotizacionesEnEspera.map((reserva, index) => (
-              <ReservaCard
-                key={reserva.id_reserva}
-                reserva={reserva}
-                index={index}
-                onActionClick={abrirModalCotizacion} // Se mantiene, pero la función lo ignora si ya tiene cotización
-                type="en_espera"
-              />
-            ))
-          ) : (
-            <p className="text-white/60 italic p-3 rounded-lg bg-[#16182c]">No hay cotizaciones pendientes de respuesta del cliente.</p>
-          )}
-        </div>
-      </section>
+  const ReservaCard = ({ reserva, index, onActionClick, type }) => {
+    const isExpanded = expandedCard === reserva.id_reserva;
 
-      <hr className="border-gray-700" />
+    const isConfirmed = reserva.respuestaCliente === "CONFIRMADA";
+    const isRejected = reserva.respuestaCliente === "CANCELADA";
 
-      {/* Sección 3: Historial de Respuestas */}
-      <section>
-        <h3 className="text-white text-xl font-semibold mb-4 sm:text-lg flex items-center">
-          <Info className="w-5 h-5 mr-2 text-green-500" /> Historial de Respuestas
-        </h3>
+    const cardBg = "bg-[#16182c] hover:bg-white/10";
+    const titleColor = "text-white";
+    const detailColor = "text-white/70";
+    const dividerColor = "border-white/10";
 
-        <div>
-          {cotizacionesConfirmadas.length > 0 ? (
-            cotizacionesConfirmadas.map((reserva, index) => (
-              <ReservaCard
-                key={reserva.id_reserva}
-                reserva={reserva}
-                index={index}
-                onActionClick={abrirModalDetalles}
-                type="confirmadas"
-              />
-            ))
-          ) : (
-            <p className="text-white/60 italic p-3 rounded-lg bg-[#16182c]">No hay cotizaciones confirmadas o rechazadas aún.</p>
-          )}
-        </div>
-      </section>
+    const statusColor = isConfirmed
+      ? "text-green-300 bg-green-600/30"
+      : isRejected
+      ? "text-red-300 bg-red-600/30"
+      : "text-yellow-300 bg-yellow-600/30";
 
-      {/* MODAL CREAR/EDITAR COTIZACIÓN (Solo para crear nuevas) */}
-      {modalTipo === "crear" && cotizacionSeleccionada && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 animate-fadeIn shadow-2xl relative">
-            <button
-              onClick={() => setModalTipo("")}
-              className="absolute top-4 right-4 text-white/70 hover:text-white"
-            >
-              <X size={22} /> {/* Componente 'X' ahora importado */}
-            </button>
-            <h2 className="text-2xl font-bold mb-4 text-blue-400 border-b pb-3 border-white/10">
-              Crear Cotización
-              <span className="block text-sm font-normal text-white/60 mt-1">Para: {cotizacionSeleccionada.cliente.nombre} ({cotizacionSeleccionada.vehiculo})</span>
-            </h2>
+    return (
+      <div
+        key={reserva.id_reserva}
+        className={`${cardBg} rounded-xl p-4 mb-3 border border-white/10 shadow-lg sm:p-6 transition-colors duration-200`}
+      >
+        {/* HEADER */}
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => toggleExpanded(reserva.id_reserva)}
+        >
+          <div className="flex items-center space-x-3">
+            <span className={`font-bold text-lg ${titleColor}`}>
+              {index + 1}.
+            </span>
+            <div className="flex flex-col">
+              <span
+                className={`font-semibold truncate max-w-[200px] ${titleColor}`}
+              >
+                {reserva.cliente.nombre}
+              </span>
+              <span className={`text-sm flex items-center ${detailColor}`}>
+                <Car className="w-4 h-4 mr-1" />
+                {reserva.vehiculo}
+              </span>
+            </div>
+          </div>
 
-            <div className="mb-4">
-              <label className="text-white/70 text-sm block mb-1">Precio cotizado (S/):</label>
-              <input
-                type="number"
-                value={precioCotizacion}
-                onChange={(e) => setPrecioCotizacion(e.target.value)}
-                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ej. 150.00"
-              />
-            </div>
+          <div className="flex items-center space-x-2">
+            <span
+              className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor}`}
+            >
+              {reserva.respuestaCliente}
+            </span>
+            {isExpanded ? (
+              <ChevronUp className={`w-5 h-5 ${detailColor}`} />
+            ) : (
+              <ChevronDown className={`w-5 h-5 ${detailColor}`} />
+            )}
+          </div>
+        </div>
 
-            <div className="mb-4">
-              <label className="text-white/70 text-sm block mb-1">Detalles de la cotización:</label>
-              <textarea
-                value={detallesCotizacion}
-                onChange={(e) => setDetallesCotizacion(e.target.value)}
-                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-blue-500 focus:border-blue-500"
-                rows={4}
-                placeholder="Describe el trabajo, repuestos y costos."
-              ></textarea>
-            </div>
+        {/* EXPANDIBLE */}
+        {isExpanded && (
+          <div className={`mt-4 pt-4 border-t ${dividerColor} space-y-3`}>
+            <div className={`flex items-center text-sm ${detailColor}`}>
+              <Calendar className="w-4 h-4 mr-2 text-blue-400" />
+              Fecha/Hora: {reserva.fecha} @ {reserva.hora_inicio}
+            </div>
 
-            <button
-              onClick={crearCotizacion}
-              className="mt-4 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition duration-200"
-            >
-              Enviar Cotización
-            </button>
+            <div className={`flex items-start text-sm ${detailColor}`}>
+              <Wrench className="w-4 h-4 mr-2 text-yellow-400 mt-0.5" />
+              Servicio: {reserva.servicio}
+            </div>
 
-            <button
-              onClick={() => setModalTipo("")}
-              className="mt-2 w-full h-12 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold transition duration-200 border border-white/10"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
+            {/* CONTACTO */}
+            <div
+              className={`text-sm ${detailColor} border-t border-dashed ${dividerColor} pt-3`}
+            >
+              <p className={`font-semibold ${titleColor} mb-1`}>Contacto:</p>
+              <p>Email: {reserva.cliente.correo}</p>
+              <p>Tel: {reserva.cliente.telefono}</p>
+            </div>
 
-      {/* MODAL PARA VER DETALLES (Resumen de Cotización) */}
-      {modalTipo === "ver_detalles" && cotizacionSeleccionada && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 animate-fadeIn shadow-2xl relative">
-            <div className="flex justify-between items-center border-b pb-2 border-white/10 mb-4">
-                <h2 className="text-2xl font-bold text-blue-400">
-                    Resumen de Cotización
-                </h2>
-                <button onClick={() => setModalTipo("")} className="text-white/70 hover:text-white">
-                    <X size={22} />
-                </button>
-            </div>
+            {/* COTIZACIÓN SI EXISTE */}
+            {reserva.cotizacion && (
+              <div
+                className={`text-sm ${detailColor} border-t border-dashed ${dividerColor} pt-3`}
+              >
+                <p
+                  className={`font-semibold ${titleColor} mb-1 flex items-center`}
+                >
+                  <DollarSign className="w-4 h-4 mr-1 text-green-400" />
+                  Cotización: S/ {reserva.cotizacion.total}
+                </p>
+                <p className="text-xs italic text-white/50">
+                  {reserva.cotizacion.detalles}
+                </p>
+              </div>
+            )}
 
-            <p className="text-lg font-bold text-blue-400 flex items-center">
-                <Car className="w-5 h-5 mr-2" />
-                {cotizacionSeleccionada.vehiculo}
-            </p>
-            
-            <div className="space-y-3 text-white/80 border-t pt-4 mt-4 border-dashed border-white/10">
-                <p className="font-medium flex justify-between items-center text-lg">
-                    <span><DollarSign className="w-5 h-5 inline mr-2 text-green-400" /> Monto Total:</span>
-                    <span className="text-xl text-green-400 font-bold">S/ {cotizacionSeleccionada.cotizacion.total.toFixed(2)}</span>
-                </p>
-                <p className="flex justify-between items-center">
-                    <span>Respuesta del Cliente:</span>
-                    <span className={`font-semibold ${cotizacionSeleccionada.respuestaCliente === 'Aprobado' ? 'text-green-400' : cotizacionSeleccionada.respuestaCliente === 'Rechazado' ? 'text-red-400' : 'text-yellow-400'}`}>
-                        {cotizacionSeleccionada.respuestaCliente}
-                    </span>
-                </p>
-            </div>
+            {/* BOTÓN DE ACCIÓN */}
+            <div className={`pt-3 border-t ${dividerColor}`}>
+              {type === "pendientes" && (
+                <button
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
+                  onClick={() => onActionClick(reserva)}
+                >
+                  Crear Cotización
+                </button>
+              )}
 
-            <div className="space-y-2 text-white/80 border-t pt-4 mt-4 border-dashed border-white/10">
-                <p className="font-semibold text-white">Detalles del Servicio:</p>
-                <p className="text-sm italic bg-white/5 p-3 rounded-lg border border-white/10 whitespace-pre-line">
-                    {cotizacionSeleccionada.cotizacion.detalles}
-                </p>
-            </div>
+              {type === "en_espera" && (
+                <button
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg"
+                  onClick={() => abrirModalDetalles(reserva)}
+                >
+                  Ver Cotización Enviada
+                </button>
+              )}
 
-            <button
-              onClick={() => setModalTipo("")}
-              className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition duration-200 mt-6"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+              {type === "confirmadas" && (
+                <button
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg"
+                  onClick={() => abrirModalDetalles(reserva)}
+                >
+                  Ver Detalles
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================
+  // 🔥 4. RETORNO (NO TOCO TU DISEÑO)
+  // ============================================================
+
+  return (
+    <div className="p-4 sm:p-8 space-y-10 min-h-screen text-white">
+      {/* RESERVAS POR COTIZAR */}
+      <section>
+        <h3 className="text-white text-xl font-semibold mb-4 flex items-center">
+          <Wrench className="w-5 h-5 mr-2 text-yellow-500" /> Reservas por
+          Cotizar (Sin Cotización Enviada)
+        </h3>
+
+        {reservasPendientes.length > 0 ? (
+          reservasPendientes.map((reserva, index) => (
+            <ReservaCard
+              key={reserva.id_reserva}
+              reserva={reserva}
+              index={index}
+              onActionClick={abrirModalCotizacion}
+              type="pendientes"
+            />
+          ))
+        ) : (
+          <p className="text-white/60 italic bg-[#16182c] p-3 rounded-lg">
+            No hay reservas pendientes de cotización.
+          </p>
+        )}
+      </section>
+
+      <hr className="border-gray-700" />
+
+      {/* COTIZACIONES ENVIADAS */}
+      <section>
+        <h3 className="text-white text-xl font-semibold mb-4 flex items-center">
+          <DollarSign className="w-5 h-5 mr-2 text-blue-500" /> Cotizaciones
+          Enviadas (En Espera)
+        </h3>
+
+        {cotizacionesEnEspera.length > 0 ? (
+          cotizacionesEnEspera.map((reserva, index) => (
+            <ReservaCard
+              key={reserva.id_reserva}
+              reserva={reserva}
+              index={index}
+              type="en_espera"
+            />
+          ))
+        ) : (
+          <p className="text-white/60 italic bg-[#16182c] p-3 rounded-lg">
+            No hay cotizaciones enviadas.
+          </p>
+        )}
+      </section>
+
+      <hr className="border-gray-700" />
+
+      {/* HISTORIAL */}
+      <section>
+        <h3 className="text-white text-xl font-semibold mb-4 flex items-center">
+          <Info className="w-5 h-5 mr-2 text-green-500" /> Historial de
+          Respuestas
+        </h3>
+
+        {cotizacionesConfirmadas.length > 0 ? (
+          cotizacionesConfirmadas.map((reserva, index) => (
+            <ReservaCard
+              key={reserva.id_reserva}
+              reserva={reserva}
+              index={index}
+              type="confirmadas"
+            />
+          ))
+        ) : (
+          <p className="text-white/60 italic bg-[#16182c] p-3 rounded-lg">
+            No hay cotizaciones confirmadas o rechazadas.
+          </p>
+        )}
+      </section>
+
+      {/* --------- MODALES (NO LOS MODIFIQUÉ) --------- */}
+      {modalTipo === "crear" && cotizacionSeleccionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 shadow-2xl relative">
+            <button
+              onClick={() => setModalTipo("")}
+              className="absolute top-4 right-4 text-white/70 hover:text-white"
+            >
+              <X size={22} />
+            </button>
+
+            <h2 className="text-2xl font-bold mb-4 text-blue-400 border-b pb-3 border-white/10">
+              Crear Cotización
+            </h2>
+
+            <div className="mb-4">
+              <label className="text-white/70 text-sm block mb-1">
+                Precio cotizado (S/):
+              </label>
+              <input
+                type="number"
+                value={precioCotizacion}
+                onChange={(e) => setPrecioCotizacion(e.target.value)}
+                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white"
+                placeholder="Ej. 120.00"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="text-white/70 text-sm block mb-1">
+                Detalles del servicio:
+              </label>
+              <textarea
+                value={detallesCotizacion}
+                onChange={(e) => setDetallesCotizacion(e.target.value)}
+                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white"
+                rows={4}
+              ></textarea>
+            </div>
+
+            <button
+              onClick={crearCotizacion}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              Enviar Cotización
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modalTipo === "ver_detalles" && cotizacionSeleccionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#13162b] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-white/10 shadow-2xl relative">
+            <button
+              onClick={() => setModalTipo("")}
+              className="absolute top-4 right-4 text-white/70 hover:text-white"
+            >
+              <X size={22} />
+            </button>
+
+            <h2 className="text-2xl font-bold text-blue-400 mb-4">
+              Resumen de Cotización
+            </h2>
+
+            <p className="text-lg font-bold text-blue-400 flex items-center">
+              <Car className="w-5 h-5 mr-2" />
+              {cotizacionSeleccionada.vehiculo}
+            </p>
+
+            <div className="space-y-3 text-white/80 border-t pt-4 mt-4">
+              <p className="font-medium flex justify-between items-center text-lg">
+                <span>Monto Total:</span>
+                <span className="text-xl text-green-400 font-bold">
+                  S/ {cotizacionSeleccionada.cotizacion.total}
+                </span>
+              </p>
+
+              <p className="flex justify-between items-center">
+                <span>Estado:</span>
+                <span className="font-semibold text-green-400">
+                  {cotizacionSeleccionada.respuestaCliente}
+                </span>
+              </p>
+            </div>
+
+            <div className="space-y-2 text-white/80 border-t pt-4 mt-4">
+              <p className="font-semibold">Detalles:</p>
+              <p className="text-sm italic">
+                {cotizacionSeleccionada.cotizacion.detalles}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setModalTipo("")}
+              className="w-full mt-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

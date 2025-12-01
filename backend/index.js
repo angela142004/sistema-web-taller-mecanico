@@ -18,7 +18,7 @@ import cotizacionClienteRoutes from "./src/routes/cotizacion.cliente.routes.js";
 import asignacionesRoutes from "./src/routes/asignacion.routes.js";
 import asignacionClienteRoutes from "./src/routes/asignacion.cliente.routes.js";
 import historialRoutes from "./src/routes/historial.routes.js";
-
+import { getReservasPendientes } from "./src/controllers/reservas.controller.js";
 // ⭐ NUEVO
 import mecanicosRoutes from "./src/routes/mecanicos.routes.js";
 
@@ -29,7 +29,7 @@ const app = express();
 // CORS
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };

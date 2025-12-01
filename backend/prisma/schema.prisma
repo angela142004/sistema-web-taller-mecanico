@@ -196,6 +196,7 @@ model Cotizaciones {
   id_reserva    Int              @unique
   fecha         DateTime         @default(now()) @db.Date
   total         Decimal          @db.Decimal(10, 2)
+  detalles      String?
   estado        EstadoCotizacion
 
   reserva      Reservas        @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade)

@@ -271,3 +271,76 @@ export const getReservasCliente = async (req, res) => {
     res.status(500).json({ error: "Error al obtener reservas del cliente" });
   }
 };
+
+export const getReservasPendientes = async (req, res) => {
+  try {
+    const reservas = await prisma.reservas.findMany({
+      where: { estado: "PENDIENTE" },
+      include: {
+        cliente: { include: { usuario: true } },
+        vehiculo: {
+          include: {
+            modelo: true, // 🔥 Igual que en el resto del sistema
+          },
+        },
+        servicio: true,
+      },
+      orderBy: { fecha: "desc" },
+    });
+
+    res.json(reservas);
+  } catch (error) {
+    console.error("Error al obtener reservas pendientes:", error);
+    res.status(500).json({ error: "Error al obtener reservas pendientes" });
+  }
+};
+export const updateEstadoReserva = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    // Validar estado permitido
+    const estadosValidos = ["CONFIRMADA", "CANCELADA"];
+
+    if (!estadosValidos.includes(estado)) {
+      return res.status(400).json({
+        error: "Estado inválido. Use CONFIRMADA o CANCELADA.",
+      });
+    }
+
+    // Actualizar estado
+    const reservaActualizada = await prisma.reservas.update({
+      where: { id_reserva: Number(id) },
+      data: { estado },
+    });
+
+    res.json({
+      message: "Estado actualizado correctamente",
+      reserva: reservaActualizada,
+    });
+  } catch (error) {
+    console.error("Error al actualizar estado de reserva:", error);
+    res.status(500).json({ error: "Error al actualizar estado de la reserva" });
+  }
+};
+export const getReservasConfirmadas = async (req, res) => {
+  try {
+    const reservas = await prisma.reservas.findMany({
+      where: { estado: "CONFIRMADA" },
+      include: {
+        cliente: { include: { usuario: true } },
+        vehiculo: { include: { modelo: true } },
+        servicio: true,
+
+        // 🔥 AGREGADO: Cargar cotización si existe
+        cotizacion: true,
+      },
+      orderBy: { fecha: "desc" },
+    });
+
+    res.json(reservas);
+  } catch (error) {
+    console.error("Error al obtener reservas confirmadas:", error);
+    res.status(500).json({ error: "Error al obtener reservas confirmadas" });
+  }
+};

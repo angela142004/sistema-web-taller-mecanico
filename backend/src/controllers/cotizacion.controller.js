@@ -6,21 +6,31 @@ const prisma = new PrismaClient();
 // ==========================
 export const crearCotizacion = async (req, res) => {
   try {
-    console.log("BODY RECIBIDO:", req.body);
+    const { id_reserva, total, detalles } = req.body;
 
-    const { id_reserva, total, estado } = req.body;
-
-    if (!id_reserva || !total) {
-      console.log("Valores recibidos:", { id_reserva, total });
+    if (!id_reserva || !total || !detalles) {
       return res.status(400).json({ message: "Faltan campos requeridos" });
     }
 
+    // 1️⃣ Validar si YA existe una cotización para esa reserva
+    const existente = await prisma.cotizaciones.findUnique({
+      where: { id_reserva },
+    });
+
+    if (existente) {
+      return res.status(400).json({
+        message: "Ya existe una cotización para esta reserva.",
+      });
+    }
+
+    // 2️⃣ Crear cotización con estado PENDIENTE
     const nuevaCotizacion = await prisma.cotizaciones.create({
       data: {
         id_reserva,
         fecha: new Date(),
         total,
-        estado: estado || "PENDIENTE",
+        detalles,
+        estado: "PENDIENTE",
       },
     });
 
