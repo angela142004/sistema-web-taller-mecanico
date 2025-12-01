@@ -17,6 +17,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "multer": "^2.0.2",
     "prisma": "^6.14.0",
     "timezone": "^1.0.23",
     "utc": "^0.1.0"

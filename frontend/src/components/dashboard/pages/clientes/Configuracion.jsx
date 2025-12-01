@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
-const token = localStorage.getItem("token") || "";
 
 export default function Configuracion() {
   const [usuario, setUsuario] = useState({
@@ -27,31 +26,56 @@ export default function Configuracion() {
   const [showRepeat, setShowRepeat] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // ======== Cargar usuario ========
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const res = await fetch(`${API}/auth/me`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) throw new Error("Error al cargar usuario");
-        const data = await res.json();
-        setUsuario(data);
-        setForm((f) => ({
-          ...f,
-          nuevoNombre: data.nombre,
-          nuevoCorreo: data.correo,
-          nuevoTelefono: data.telefono || "",
-          nuevaDireccion: data.direccion || "",
-        }));
-      } catch (e) {
-        console.error(e);
+  // ======== Cargar datos usuario desde backend ========
+  const loadUser = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token") || "";
+      const userStored = JSON.parse(localStorage.getItem("user")) || {};
+      const userId =
+        userStored.id_usuario || localStorage.getItem("id_usuario");
+
+      if (!userId) {
+        console.warn("No se encontró ID de usuario");
+        return;
       }
-    };
-    loadUser();
+
+      const res = await fetch(`${API}/mecanica/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Error al obtener usuario");
+      const data = await res.json();
+
+      console.log("Usuario cargado:", data);
+
+      setUsuario(data);
+
+      // === LÓGICA DE FOTO: Si existe, construimos la URL completa ===
+      if (data.foto) {
+        setPreview(`${API}/uploads/${data.foto}`);
+      } else {
+        setPreview("/default-avatar.png");
+      }
+
+      setForm((f) => ({
+        ...f,
+        nuevoNombre: data.nombre,
+        nuevoCorreo: data.correo,
+        nuevoTelefono: data.telefono || "",
+        nuevaDireccion: data.direccion || "",
+      }));
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
-  // ======== Cambiar foto ========
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  // ======== Seleccionar foto (Vista previa local) ========
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -60,26 +84,73 @@ export default function Configuracion() {
     }
   };
 
+  // ======== Subir foto al Backend ========
   const handleUploadPhoto = async () => {
+    // 1. Verificar que haya una imagen seleccionada
     if (!selectedFile) return alert("Selecciona una imagen primero");
+
+    // 2. Obtener el token para tener permiso
+    const token = localStorage.getItem("token") || "";
+
+    // 3. Crear el paquete de datos (FormData)
     const formData = new FormData();
+    // ✅ IMPORTANTE: El nombre "foto" aquí debe coincidir exactamente
+    // con lo que pusimos en el backend: upload.single("foto")
     formData.append("foto", selectedFile);
 
     try {
-      const res = await fetch(`${API}/auth/upload-photo`, {
+      setMsg("⏳ Subiendo imagen..."); // Feedback visual
+
+      // ✅ 4. LA RUTA CORRECTA
+      // Basado en tu index.js (app.use("/mecanica", userRoutes))
+      // y tu user.routes.js (router.post("/upload-photo", ...))
+      const res = await fetch(`${API}/mecanica/upload-photo`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // ✅ OJO: NO agregar "Content-Type": "application/json" aquí.
+          // fetch lo detecta automáticamente al usar FormData. Si lo pones, falla.
+        },
         body: formData,
       });
-      if (!res.ok) throw new Error("Error al subir imagen");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Error al subir imagen");
+      }
+
+      const data = await res.json();
+
+      // 5. Éxito: Actualizar la vista con la URL real del servidor
+      // Ahora la imagen viene de http://localhost:4001/uploads/....
+      setPreview(`${API}/uploads/${data.foto}`);
       setMsg("✅ Foto actualizada correctamente");
-    } catch {
-      setMsg("❌ Error al subir imagen");
+      setSelectedFile(null); // Limpiamos la selección
+
+      // ✅ 6. Actualizar el localStorage para que el Topbar se entere
+      const userStored = JSON.parse(localStorage.getItem("user")) || {};
+      userStored.foto = data.foto; // Guardamos el nuevo nombre de archivo
+      localStorage.setItem("user", JSON.stringify(userStored));
+
+      // Opcional: Disparar un evento para avisar al Topbar que recargue (si fuera necesario)
+      window.dispatchEvent(new Event("storage"));
+    } catch (error) {
+      console.error(error);
+      setMsg(`❌ Error: ${error.message}`);
     }
   };
 
-  // ======== Actualizar datos ========
+  // ======== Actualizar campos usuario ========
   const handleUpdateField = async () => {
+    const token = localStorage.getItem("token") || "";
+    const userStored = JSON.parse(localStorage.getItem("user")) || {};
+    const userId = userStored.id_usuario || localStorage.getItem("id_usuario");
+
+    if (!userId) {
+      setMsg("❌ Error: No se identifica el usuario.");
+      return;
+    }
+
     try {
       const payload = {
         nombre: form.nuevoNombre,
@@ -87,16 +158,19 @@ export default function Configuracion() {
         telefono: form.nuevoTelefono,
         direccion: form.nuevaDireccion,
       };
-      const res = await fetch(`${API}/auth/update-user`, {
+
+      const res = await fetch(`${API}/mecanica/users/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) throw new Error("Error al actualizar datos");
       setMsg("✅ Datos actualizados correctamente");
+      loadUser();
     } catch {
       setMsg("❌ Error al actualizar datos");
     }
@@ -104,20 +178,32 @@ export default function Configuracion() {
 
   // ======== Cambiar contraseña ========
   const handleChangePassword = async () => {
+    const token = localStorage.getItem("token") || "";
+    const userStored = JSON.parse(localStorage.getItem("user")) || {};
+    const userId = userStored.id_usuario || localStorage.getItem("id_usuario");
+
+    if (!userId) {
+      setMsg("❌ Error: No se identifica el usuario.");
+      return;
+    }
+
     if (form.nuevaPass !== form.repetirPass) {
       setMsg("⚠️ Las contraseñas no coinciden");
       return;
     }
+
     try {
-      const res = await fetch(`${API}/auth/change-password`, {
+      const res = await fetch(`${API}/mecanica/users/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ contraseña: form.nuevaPass }),
       });
+
       if (!res.ok) throw new Error("Error al cambiar contraseña");
+
       setMsg("✅ Contraseña actualizada correctamente");
       setForm((f) => ({ ...f, nuevaPass: "", repetirPass: "" }));
     } catch {
@@ -125,7 +211,6 @@ export default function Configuracion() {
     }
   };
 
-  // ======== Estilos ========
   const input =
     "w-full h-12 px-4 rounded-xl bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-[#3b138d] outline-none";
   const button =
@@ -140,6 +225,9 @@ export default function Configuracion() {
             src={preview}
             alt="perfil"
             className="w-48 h-48 rounded-full object-cover border-4 border-[#3b138d]"
+            onError={(e) => {
+              e.target.src = "/default-avatar.png";
+            }} // Si falla la carga, poner default
           />
           <input
             type="file"
@@ -163,8 +251,10 @@ export default function Configuracion() {
         </div>
 
         <div className="text-center sm:text-left max-w-md">
-          <h2 className="text-2xl font-semibold">{usuario.nombre || "Usuario"}</h2>
-          <p className="text-white/80">{usuario.correo || "correo@ejemplo.com"}</p>
+          <h2 className="text-2xl font-semibold">
+            {usuario.nombre || "Cargando..."}
+          </h2>
+          <p className="text-white/80">{usuario.correo || "..."}</p>
           <p className="text-white/70 mt-2">
             Teléfono: {usuario.telefono || "—"} <br />
             Dirección: {usuario.direccion || "—"}
@@ -172,103 +262,85 @@ export default function Configuracion() {
         </div>
       </section>
 
-      {/* ===== FORMULARIOS ===== */}
-      <section className="grid md:grid-cols-2 gap-8">
-        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-6">
-          <h3 className="text-xl font-semibold mb-4">Datos personales</h3>
-
-          <div>
-            <label className="block mb-2 font-medium">Nombre</label>
-            <input
-              className={input}
-              value={form.nuevoNombre}
-              onChange={(e) => setForm({ ...form, nuevoNombre: e.target.value })}
-              placeholder="Nuevo nombre"
-            />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Correo</label>
-            <input
-              className={input}
-              value={form.nuevoCorreo}
-              onChange={(e) => setForm({ ...form, nuevoCorreo: e.target.value })}
-              placeholder="Nuevo correo"
-            />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Teléfono</label>
-            <input
-              className={input}
-              value={form.nuevoTelefono}
-              onChange={(e) => setForm({ ...form, nuevoTelefono: e.target.value })}
-              placeholder="Nuevo teléfono"
-            />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Dirección</label>
-            <input
-              className={input}
-              value={form.nuevaDireccion}
-              onChange={(e) => setForm({ ...form, nuevaDireccion: e.target.value })}
-              placeholder="Nueva dirección"
-            />
-          </div>
-
-          <button className={button} onClick={handleUpdateField}>
-            Guardar cambios
-          </button>
-        </div>
-
-        {/* CAMBIO DE CONTRASEÑA */}
-        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-6">
-          <h3 className="text-xl font-semibold mb-4">Cambiar contraseña</h3>
-
-          <div className="relative">
-            <input
-              type={showPass ? "text" : "password"}
-              className={input}
-              placeholder="Nueva contraseña"
-              value={form.nuevaPass}
-              onChange={(e) => setForm({ ...form, nuevaPass: e.target.value })}
-            />
-            <button
-              onClick={() => setShowPass(!showPass)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700"
-            >
-              {showPass ? <EyeOff /> : <Eye />}
-            </button>
-          </div>
-
-          <div className="relative">
-            <input
-              type={showRepeat ? "text" : "password"}
-              className={input}
-              placeholder="Repetir contraseña"
-              value={form.repetirPass}
-              onChange={(e) => setForm({ ...form, repetirPass: e.target.value })}
-            />
-            <button
-              onClick={() => setShowRepeat(!showRepeat)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700"
-            >
-              {showRepeat ? <EyeOff /> : <Eye />}
-            </button>
-          </div>
-
-          <button className={button} onClick={handleChangePassword}>
-            Cambiar contraseña
-          </button>
-        </div>
+      {/* ===== EDITAR INFORMACIÓN ===== */}
+      <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 shadow-md space-y-4">
+        <h3 className="text-xl font-semibold">Actualizar datos personales</h3>
+        <input
+          className={input}
+          placeholder="Nuevo nombre"
+          value={form.nuevoNombre}
+          onChange={(e) => setForm({ ...form, nuevoNombre: e.target.value })}
+        />
+        <input
+          className={input}
+          placeholder="Nuevo correo"
+          value={form.nuevoCorreo}
+          onChange={(e) => setForm({ ...form, nuevoCorreo: e.target.value })}
+        />
+        <input
+          className={input}
+          placeholder="Nuevo teléfono"
+          value={form.nuevoTelefono}
+          onChange={(e) => setForm({ ...form, nuevoTelefono: e.target.value })}
+        />
+        <input
+          className={input}
+          placeholder="Nueva dirección"
+          value={form.nuevaDireccion}
+          onChange={(e) => setForm({ ...form, nuevaDireccion: e.target.value })}
+        />
+        <button onClick={handleUpdateField} className={button}>
+          Guardar cambios
+        </button>
       </section>
 
-      {msg && (
-        <div className="mt-6 bg-white/10 text-center text-white/90 px-6 py-3 rounded-xl max-w-2xl mx-auto">
-          {msg}
+      {/* ===== CAMBIAR CONTRASEÑA ===== */}
+      <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 shadow-md space-y-4">
+        <h3 className="text-xl font-semibold">Cambiar contraseña</h3>
+        <div className="relative">
+          <input
+            type={showPass ? "text" : "password"}
+            className={input}
+            placeholder="Nueva contraseña"
+            value={form.nuevaPass}
+            onChange={(e) => setForm({ ...form, nuevaPass: e.target.value })}
+          />
+          <span
+            className="absolute right-4 top-4 cursor-pointer"
+            onClick={() => setShowPass(!showPass)}
+          >
+            {showPass ? (
+              <EyeOff className="text-gray-500" />
+            ) : (
+              <Eye className="text-gray-500" />
+            )}
+          </span>
         </div>
-      )}
+        <div className="relative">
+          <input
+            type={showRepeat ? "text" : "password"}
+            className={input}
+            placeholder="Repetir contraseña"
+            value={form.repetirPass}
+            onChange={(e) => setForm({ ...form, repetirPass: e.target.value })}
+          />
+          <span
+            className="absolute right-4 top-4 cursor-pointer"
+            onClick={() => setShowRepeat(!showRepeat)}
+          >
+            {showRepeat ? (
+              <EyeOff className="text-gray-500" />
+            ) : (
+              <Eye className="text-gray-500" />
+            )}
+          </span>
+        </div>
+        <button onClick={handleChangePassword} className={button}>
+          Actualizar contraseña
+        </button>
+      </section>
+
+      <p className="text-center text-sm mt-4 text-white/80">{msg}</p>
     </div>
   );
 }
