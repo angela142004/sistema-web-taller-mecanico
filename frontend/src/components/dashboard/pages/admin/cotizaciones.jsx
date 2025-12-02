@@ -58,6 +58,7 @@ export default function CotizacionesAdmin() {
             ? {
                 total: r.cotizacion.total,
                 detalles: r.cotizacion.detalles,
+                estado: r.cotizacion.estado,
               }
             : null,
         };
@@ -80,12 +81,15 @@ export default function CotizacionesAdmin() {
 
   // 👉 Confirmada y con cotización → En Espera
   const cotizacionesEnEspera = reservas.filter(
-    (r) => r.respuestaCliente === "CONFIRMADA" && r.cotizacion
+    (r) => r.cotizacion && r.cotizacion.estado === "PENDIENTE"
   );
 
   // 👉 Canceladas → Historial
   const cotizacionesConfirmadas = reservas.filter(
-    (r) => r.respuestaCliente === "CANCELADA"
+    (r) =>
+      r.cotizacion &&
+      (r.cotizacion.estado === "CONFIRMADO" ||
+        r.cotizacion.estado === "RECHAZADO")
   );
 
   // ============================================================
@@ -169,20 +173,19 @@ export default function CotizacionesAdmin() {
   const ReservaCard = ({ reserva, index, onActionClick, type }) => {
     const isExpanded = expandedCard === reserva.id_reserva;
 
-    const isConfirmed = reserva.respuestaCliente === "CONFIRMADA";
-    const isRejected = reserva.respuestaCliente === "CANCELADA";
+    const estadoActual = reserva.cotizacion?.estado || reserva.respuestaCliente;
 
     const cardBg = "bg-[#16182c] hover:bg-white/10";
     const titleColor = "text-white";
     const detailColor = "text-white/70";
     const dividerColor = "border-white/10";
 
-    const statusColor = isConfirmed
-      ? "text-green-300 bg-green-600/30"
-      : isRejected
-      ? "text-red-300 bg-red-600/30"
-      : "text-yellow-300 bg-yellow-600/30";
-
+    const statusColor =
+      estadoActual === "CONFIRMADA"
+        ? "text-green-300 bg-green-600/30"
+        : estadoActual === "CANCELADA"
+        ? "text-red-300 bg-red-600/30"
+        : "text-yellow-300 bg-yellow-600/30";
     return (
       <div
         key={reserva.id_reserva}
@@ -214,7 +217,7 @@ export default function CotizacionesAdmin() {
             <span
               className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor}`}
             >
-              {reserva.respuestaCliente}
+              {reserva.cotizacion ? reserva.cotizacion.estado : estadoActual}
             </span>
             {isExpanded ? (
               <ChevronUp className={`w-5 h-5 ${detailColor}`} />

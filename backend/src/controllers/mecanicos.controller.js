@@ -88,11 +88,30 @@ export const getMecanicos = async (req, res) => {
   try {
     const mecanicos = await prisma.mecanicos.findMany({
       include: {
-        usuario: true,
+        usuario: {
+          select: {
+            nombre: true,
+            foto: true,
+          },
+        },
+        asignaciones: {
+          where: {
+            estado: { in: ["pendiente", "en_proceso"] },
+          },
+        },
       },
     });
 
-    res.json(mecanicos);
+    const mecanicosConDisponibilidad = mecanicos.map((m) => ({
+      id_mecanico: m.id_mecanico,
+      nombre: m.usuario.nombre,
+      foto: m.usuario.foto,
+      telefono: m.telefono,
+      especialidad: m.especialidad,
+      disponible: m.asignaciones.length === 0,
+    }));
+
+    res.json(mecanicosConDisponibilidad);
   } catch (error) {
     console.error("Error en getMecanicos:", error);
     res.status(500).json({ message: "Error interno del servidor" });

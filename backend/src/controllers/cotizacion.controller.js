@@ -48,14 +48,42 @@ export const obtenerCotizaciones = async (req, res) => {
   try {
     const cotizaciones = await prisma.cotizaciones.findMany({
       include: {
-        reserva: true,
+        reserva: {
+          include: {
+            cliente: {
+              include: {
+                usuario: true,
+              },
+            },
+            vehiculo: {
+              include: {
+                modelo: true,
+              },
+            },
+            servicio: true,
+          },
+        },
+
+        // 🔥 AGREGADO: trae las asignaciones SI EXISTEN
+        asignaciones: {
+          include: {
+            mecanico: {
+              include: {
+                usuario: true, // por si quieres mostrar el nombre del mecánico
+              },
+            },
+          },
+        },
+
+        // 🔥 Puedes agregar factura aquí si quieres
+        // factura: true,
       },
     });
 
     res.json(cotizaciones);
   } catch (error) {
     console.error("Error al obtener cotizaciones:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    res.status(500).json({ error: "Error al obtener cotizaciones" });
   }
 };
 

@@ -149,7 +149,7 @@ export default function EstadoReserva() {
           </p>
 
           {/* BOTÓN CANCELAR */}
-          {(r.estado === "PENDIENTE" || r.estado === "CONFIRMADA") && (
+          {r.estado === "PENDIENTE" && (
             <button
               onClick={() => abrirCancelacion(r)}
               className="w-full md:w-[260px] h-12 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300 font-semibold hover:bg-red-600/30"

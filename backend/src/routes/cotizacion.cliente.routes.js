@@ -46,7 +46,7 @@ router.put("/:id/aprobar", verifyToken, async (req, res) => {
   try {
     const updated = await prisma.cotizaciones.update({
       where: { id_cotizacion: Number(req.params.id) },
-      data: { estado: "APROBADO" },
+      data: { estado: "CONFIRMADO" },
     });
 
     res.json({ message: "Cotización aprobada" });
@@ -71,7 +71,6 @@ router.put("/:id/rechazar", verifyToken, async (req, res) => {
       where: { id_cotizacion: Number(req.params.id) },
       data: {
         estado: "RECHAZADO",
-        comentario_cliente: motivo,
       },
     });
 

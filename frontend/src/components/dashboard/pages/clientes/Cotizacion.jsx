@@ -12,7 +12,7 @@ export default function CotizacionCliente() {
     {
       id_cotizacion: 5001,
       total: 350,
-      estado: "cotizado",
+      estado: "COTIZADO",
       reserva: {
         vehiculo: {
           placa: "JHK-909",
@@ -47,9 +47,6 @@ export default function CotizacionCliente() {
     }
   };
 
-  // ─────────────────────────────
-  // APROBAR / RECHAZAR
-  // ─────────────────────────────
   const aprobarCotizacion = async (id) => {
     try {
       const res = await fetch(
@@ -58,6 +55,7 @@ export default function CotizacionCliente() {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         }
       );
@@ -79,7 +77,11 @@ export default function CotizacionCliente() {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            motivo: "El cliente rechazó la cotización",
+          }),
         }
       );
 
@@ -127,24 +129,42 @@ export default function CotizacionCliente() {
             Total cotizado: S/ {c.total}
           </p>
 
-          {/* BOTONES */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              onClick={() => aprobarCotizacion(c.id_cotizacion)}
-              className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-green-600/20 border border-green-600/40 text-green-300 hover:bg-green-600/30"
+          {/* ESTADO */}
+          <p className="text-white/70 text-sm">
+            Estado:{" "}
+            <span
+              className={
+                c.estado === "CONFIRMADO"
+                  ? "text-green-400"
+                  : c.estado === "RECHAZADO"
+                  ? "text-red-400"
+                  : "text-yellow-300"
+              }
             >
-              <Check size={18} />
-              Aprobar
-            </button>
+              {c.estado}
+            </span>
+          </p>
 
-            <button
-              onClick={() => rechazarCotizacion(c.id_cotizacion)}
-              className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-red-600/20 border border-red-600/40 text-red-300 hover:bg-red-600/30"
-            >
-              <X size={18} />
-              Rechazar
-            </button>
-          </div>
+          {/* BOTONES SOLO SI ESTÁ PENDIENTE O COTIZADO */}
+          {(c.estado === "PENDIENTE" || c.estado === "COTIZADO") && (
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={() => aprobarCotizacion(c.id_cotizacion)}
+                className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-green-600/20 border border-green-600/40 text-green-300 hover:bg-green-600/30"
+              >
+                <Check size={18} />
+                Aprobar
+              </button>
+
+              <button
+                onClick={() => rechazarCotizacion(c.id_cotizacion)}
+                className="flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-red-600/20 border border-red-600/40 text-red-300 hover:bg-red-600/30"
+              >
+                <X size={18} />
+                Rechazar
+              </button>
+            </div>
+          )}
         </section>
       ))}
     </div>
