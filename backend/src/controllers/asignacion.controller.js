@@ -1,8 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-// 🔥 AGREGA ESTO AQUÍ — SOLO PARA VER LOS MODELOS
-console.log("MODELOS DISPONIBLES:", Object.keys(prisma));
 // ==========================
 // 📌 Crear asignación
 // ==========================
@@ -38,6 +36,7 @@ export const crearAsignacion = async (req, res) => {
 // ==========================
 // 📌 Obtener TODAS las asignaciones (CORREGIDO COMPLETO)
 // ==========================
+
 export const obtenerAsignaciones = async (req, res) => {
   try {
     const asignaciones = await prisma.asignaciones.findMany({
@@ -46,6 +45,11 @@ export const obtenerAsignaciones = async (req, res) => {
           include: {
             reserva: {
               include: {
+                cliente: {
+                  include: {
+                    usuario: true, // 🔥 AQUÍ ESTABA LA CLAVE
+                  },
+                },
                 vehiculo: {
                   include: {
                     modelo: {

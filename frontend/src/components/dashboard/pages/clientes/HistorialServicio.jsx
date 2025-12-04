@@ -21,22 +21,31 @@ const fmtDate = (s) => new Date(s).toLocaleDateString();
 
 /* -------------------- UI -------------------- */
 function ChipEstado({ estado }) {
+  // Normalizamos el valor (evita null, minúsculas, espacios, femenino, etc.)
+  const s = (estado || "").trim().toUpperCase();
+
+  // Aceptamos variaciones en femenino o minúsculas
+  const normalized =
+    s === "FINALIZADA" ? "FINALIZADO" : s === "CONFIRMADO" ? "CONFIRMADA" : s;
+
   const map = {
     PENDIENTE: "bg-sky-500/80",
     CONFIRMADA: "bg-indigo-600/80",
     CANCELADA: "bg-rose-600/80",
     FINALIZADO: "bg-green-500/80",
   };
+
   const label = {
     PENDIENTE: "Pendiente",
     CONFIRMADA: "Confirmada",
     CANCELADA: "Cancelada",
     FINALIZADO: "Finalizado",
-  }[estado];
+  }[normalized];
+
   return (
     <span
       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-        map[estado] || "bg-gray-600/50"
+        map[normalized] || "bg-gray-600/50"
       }`}
     >
       {label || "—"}
@@ -145,8 +154,60 @@ function ControlBar({ query, setQuery, sortBy, setSortBy, onReload }) {
 }
 
 /* ----------- Modal ----------- */
+/* ----------- Modal ----------- */
 function Modal({ open, onClose, data }) {
   if (!open || !data) return null;
+
+  /* ---------- NUEVO: función para imprimir solo el contenido ---------- */
+  const handlePrint = () => {
+    const printContent = document.getElementById("print-area").innerHTML;
+
+    const win = window.open("", "", "width=900,height=650");
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>MULTISERVICIOS -
+AUTOMOTRIZ KLEBERTH</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 30px;
+              background: #ffffff;
+              color: #111827;
+            }
+            h2 {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            p {
+              font-size: 14px;
+              margin: 5px 0;
+            }
+            .label {
+              font-weight: bold;
+              color: #111827;
+            }
+            .estado {
+              display: inline-block;
+              padding: 4px 10px;
+              border-radius: 15px;
+              font-size: 12px;
+              font-weight: bold;
+              color: white;
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+      </html>
+    `);
+
+    win.document.close();
+    win.focus();
+    win.print();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -156,9 +217,6 @@ function Modal({ open, onClose, data }) {
       />
       <div className="relative z-10 w-[min(95vw,550px)] rounded-2xl border border-white/10 bg-[#15132b] p-6 text-white shadow-xl">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">
-            Detalle del servicio #{data.id_historial}
-          </h3>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-white/10"
@@ -167,7 +225,12 @@ function Modal({ open, onClose, data }) {
           </button>
         </div>
 
-        <div className="space-y-2 text-sm text-white/80">
+        {/* 🔻 NUEVO: CONTENEDOR PARA IMPRESIÓN */}
+        <div id="print-area" className="space-y-3 text-sm">
+          <h2 className="text-xl font-bold text-center text-white mb-4">
+            Detalle del servicio
+          </h2>
+
           <p>
             <span className="font-semibold text-white">Servicio:</span>{" "}
             {data.asignacion?.cotizacion?.reserva?.servicio?.nombre}
@@ -204,13 +267,14 @@ function Modal({ open, onClose, data }) {
 
           <p>
             <span className="font-semibold text-white">Estado:</span>{" "}
-            <ChipEstado estado={data.asignacion?.estado} />
+            <ChipEstado estado={data.asignacion?.estado || data.estado} />
           </p>
         </div>
 
+        {/* Botones */}
         <div className="mt-5 flex justify-end gap-3">
           <button
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="h-10 px-4 rounded-xl bg-[#3b138d] hover:bg-[#4316a1] flex items-center gap-2"
           >
             <Printer size={16} /> Imprimir / Descargar PDF
@@ -234,7 +298,7 @@ function CardHistorial({ row, onView }) {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between hover:bg-white/10 transition">
       <div>
         <div className="text-sm text-white/70">
-          #{row.id_historial} · {fmtDate(row.fecha)}
+          #{row.nro} · {fmtDate(row.fecha)}
         </div>
         <div className="font-semibold text-white">{row.servicio}</div>
         <div className="text-sm text-white/80">{row.vehiculo}</div>
@@ -342,8 +406,12 @@ export default function HistorialCliente() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((r) => (
-            <CardHistorial key={r.id_historial} row={r} onView={setSelected} />
+          {filtered.map((r, index) => (
+            <CardHistorial
+              key={r.id_historial}
+              row={{ ...r, nro: index + 1 }}
+              onView={setSelected}
+            />
           ))}
         </div>
       )}

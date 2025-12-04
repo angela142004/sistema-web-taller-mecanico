@@ -108,6 +108,58 @@ export const obtenerHistorial = async (req, res) => {
     res.status(500).json({ message: "Error al obtener historial" });
   }
 };
+// 📌 Obtener TODO el historial (ADMIN)
+export const obtenerHistorialAdmin = async (req, res) => {
+  try {
+    const historial = await prisma.historial_Servicios.findMany({
+      include: {
+        asignacion: {
+          include: {
+            mecanico: { include: { usuario: true } },
+            cotizacion: {
+              include: {
+                reserva: {
+                  include: {
+                    servicio: true,
+                    vehiculo: {
+                      include: {
+                        modelo: { include: { marca: true } },
+                      },
+                    },
+                    cliente: {
+                      include: {
+                        usuario: true, // 🔥 Para saber qué cliente hizo la reserva
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const respuesta = historial.map((h) => ({
+      id_historial: h.id_historial,
+      fecha: h.fecha,
+      servicio: h.asignacion.cotizacion.reserva.servicio.nombre,
+      vehiculo:
+        `${h.asignacion.cotizacion.reserva.vehiculo.modelo.nombre} - ` +
+        `${h.asignacion.cotizacion.reserva.vehiculo.modelo.marca.nombre}`,
+      cliente: h.asignacion.cotizacion.reserva.cliente.usuario.nombre,
+      mecanico: h.asignacion.mecanico.usuario.nombre,
+      costo: h.asignacion.cotizacion.total,
+      estado: h.asignacion.estado,
+      asignacion: h.asignacion,
+    }));
+
+    res.json(respuesta);
+  } catch (error) {
+    console.error("Error obteniendo historial ADMIN:", error);
+    res.status(500).json({ message: "Error al obtener historial ADMIN" });
+  }
+};
 
 // ==========================
 // 📌 Obtener un historial por ID (para el modal del botón "Ver")
@@ -191,5 +243,82 @@ export const eliminarHistorial = async (req, res) => {
   } catch (error) {
     console.error("Error al eliminar historial:", error);
     res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+// ==========================
+// 📌 Buscar historial
+// ==========================
+export const buscarHistorial = async (req, res) => {
+  try {
+    const { servicio, mecanico, vehiculo, cliente } = req.query;
+    const idUsuario = req.user.id_usuario;
+    const rol = req.user.rol;
+
+    const whereBase =
+      rol === "admin"
+        ? {}
+        : {
+            asignacion: {
+              cotizacion: {
+                reserva: {
+                  cliente: { id_usuario: idUsuario },
+                },
+              },
+            },
+          };
+
+    const historial = await prisma.historial_Servicios.findMany({
+      where: whereBase,
+      include: {
+        asignacion: {
+          include: {
+            mecanico: { include: { usuario: true } },
+            cotizacion: {
+              include: {
+                reserva: {
+                  include: {
+                    servicio: true,
+                    vehiculo: {
+                      include: {
+                        modelo: { include: { marca: true } },
+                      },
+                    },
+                    cliente: {
+                      include: { usuario: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const filtrado = historial.filter((h) => {
+      const data = {
+        servicio: h.asignacion.cotizacion.reserva.servicio.nombre,
+        mecanico: h.asignacion.mecanico.usuario.nombre,
+        vehiculo:
+          `${h.asignacion.cotizacion.reserva.vehiculo.modelo.nombre} ` +
+          `${h.asignacion.cotizacion.reserva.vehiculo.modelo.marca.nombre}`,
+        cliente: h.asignacion.cotizacion.reserva.cliente.usuario.nombre,
+      };
+
+      return (
+        (!servicio ||
+          data.servicio.toLowerCase().includes(servicio.toLowerCase())) &&
+        (!mecanico ||
+          data.mecanico.toLowerCase().includes(mecanico.toLowerCase())) &&
+        (!vehiculo ||
+          data.vehiculo.toLowerCase().includes(vehiculo.toLowerCase())) &&
+        (!cliente || data.cliente.toLowerCase().includes(cliente.toLowerCase()))
+      );
+    });
+
+    res.json(filtrado);
+  } catch (error) {
+    console.error("Error en búsqueda:", error);
+    res.status(500).json({ message: "Error en la búsqueda del historial" });
   }
 };

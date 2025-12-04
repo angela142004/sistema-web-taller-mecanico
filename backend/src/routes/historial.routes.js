@@ -5,6 +5,8 @@ import {
   obtenerHistorialPorId,
   actualizarHistorial,
   eliminarHistorial,
+  obtenerHistorialAdmin,
+  buscarHistorial, // ⬅️ IMPORTANTE: importar búsqueda
 } from "../controllers/historial.controller.js";
 
 import { verifyToken } from "../middlewares/auth.middleware.js";
@@ -15,7 +17,13 @@ const router = Router();
 // 📌 Rutas de Historial
 // ==========================
 
-// Obtener todo el historial
+// 🔥 HISTORIAL COMPLETO PARA ADMIN
+router.get("/admin", verifyToken, obtenerHistorialAdmin);
+
+// 🔍 BUSCAR HISTORIAL (servicio, mecánico, vehículo)
+router.get("/buscar", verifyToken, buscarHistorial); // ⬅️ NUEVA RUTA
+
+// Obtener todo el historial (solo del cliente logueado)
 router.get("/", verifyToken, obtenerHistorial);
 
 // Obtener historial por ID
