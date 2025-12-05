@@ -6,11 +6,13 @@ import Servicios from "../pages/Servicios";
 import Procesos from "../pages/Procesos";
 import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardCliente from "../pages/DashboardCliente";
-import DashboardMecanico from "../pages/DashboardMecan";
+import DashboardMecanico from "../pages/DashboardMecan"; // Asegúrate de que esto sea el componente correcto para el mecánico
+import MecanicoRouter from "../components/dashboard/route/MecanicoRouter"; // Rutas del mecánico
 import AppRouter from "../components/dashboard/route/AppRouter";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AdminRouter from "../components/dashboard/route/AdminRouter";
+
 // Función para proteger rutas según rol
 const PrivateRoute = ({ children, rol }) => {
   const userRol = localStorage.getItem("rol"); // lo guardaste en el login
@@ -37,6 +39,7 @@ const PublicLayout = ({ children }) => (
 
 const AppRoutes = () => (
   <Routes>
+    {/* Rutas públicas */}
     <Route
       path="/"
       element={
@@ -78,7 +81,7 @@ const AppRoutes = () => (
       }
     />
 
-    {/* Dashboards protegidos: NO usan PublicLayout */}
+    {/* Dashboards protegidos */}
     <Route
       path="/dashboard/admin/*"
       element={
@@ -96,10 +99,10 @@ const AppRoutes = () => (
       }
     />
     <Route
-      path="/dashboard/mecanico"
+      path="/dashboard/mecanico/*"
       element={
         <PrivateRoute rol="mecanico">
-          <DashboardMecanico />
+          <MecanicoRouter /> {/* Rutas específicas del mecánico */}
         </PrivateRoute>
       }
     />
