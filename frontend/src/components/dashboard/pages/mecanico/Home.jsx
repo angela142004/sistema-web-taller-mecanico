@@ -12,23 +12,23 @@ export default function DashboardInicio() {
     <div className="text-white space-y-10 animate-fadeIn p-4 sm:p-6">
 
       {/* ---------- BLOQUE DE BIENVENIDA ---------- */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#1a1a2e] via-[#292c44] to-[#15162c] p-8 sm:p-10 shadow-xl border border-white/20 relative overflow-hidden">
+      <div className="rounded-3xl bg-gradient-to-br from-[#1a1a2e] via-[#292c44] to-[#15162c] p-6 sm:p-10 shadow-xl border border-white/20 relative overflow-hidden">
 
         {/* Glow Decorativo */}
         <div className="absolute -top-16 -right-12 w-64 h-64 bg-purple-600/40 blur-[130px]"></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/20 blur-[100px]"></div>
 
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight relative z-10">
+        <h1 className="text-2xl sm:text-4xl font-bold tracking-tight relative z-10">
           ¡Bienvenido, <span className="text-indigo-400">{usuario}</span>! 👋
         </h1>
 
-        <p className="text-white/80 text-base sm:text-lg mt-2 relative z-10 max-w-2xl">
+        <p className="text-white/80 text-sm sm:text-lg mt-2 relative z-10 max-w-2xl">
           Eres parte esencial de <b>Automotriz Kleberth</b>. Aquí podrás gestionar los servicios asignados y finalizados para mantener nuestros vehículos en excelente estado.
         </p>
 
         {/* ---------- CARDS DE SERVICIOS ---------- */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 relative z-10">
-          
+        <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 relative z-10">
+
           {/* CARD 1 - Servicios Asignados */}
           <div className="p-4 sm:p-6 rounded-2xl bg-white/5 border border-white/10 shadow-lg hover:bg-white/10 transition group">
             <div className="flex items-center gap-3">
@@ -111,4 +111,3 @@ export default function DashboardInicio() {
     </div>
   );
 }
-
