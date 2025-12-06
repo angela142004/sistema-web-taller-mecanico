@@ -60,10 +60,6 @@ export default function ServicioAsignadoMecanico() {
 
   return (
     <div className="p-4 sm:p-8 space-y-10 min-h-screen text-white ">
-      <h2 className="text-3xl font-bold mb-6 flex items-center">
-        <Handshake className="w-8 h-8 mr-3 text-purple-400" />
-        Servicios Asignados: Pendientes de Recepción
-      </h2>
 
 
       {/* Sección: Servicios Pendientes de Confirmación */}
