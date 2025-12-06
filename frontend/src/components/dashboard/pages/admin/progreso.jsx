@@ -68,6 +68,22 @@ export default function AdminProgresoVehiculos() {
     );
   }, [estadoFiltro, data]);
 
+  // --- PAGINACIÓN (cliente-side) ---
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(8);
+
+  // Reset página cuando cambian filtros/datos
+  useEffect(() => {
+    setPage(1);
+  }, [filteredData, perPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / perPage));
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const displayedData = filteredData.slice(startIndex, endIndex);
+  // --- FIN PAGINACIÓN ---
+
   // --- BADGE DE ESTADO ---
   const EstadoAsignacionBadge = ({ estado }) => {
     const estadoNormalizado = estado.toLowerCase();
@@ -124,12 +140,12 @@ export default function AdminProgresoVehiculos() {
   // --- VISTA MOBILE ---
   const MobileCardView = () => (
     <div className="grid grid-cols-1 gap-4 mt-6 sm:hidden">
-      {filteredData.length === 0 ? (
+      {displayedData.length === 0 ? (
         <div className="text-center text-gray-400 py-6 bg-[#1b223b] rounded-xl p-4">
           No se encontraron reservas para este estado.
         </div>
       ) : (
-        filteredData.map((reserva) => (
+        displayedData.map((reserva) => (
           <div
             key={reserva.id_visual}
             className="bg-[#1b223b] p-4 rounded-xl shadow-lg border border-[#2c3451] space-y-3"
@@ -183,14 +199,14 @@ export default function AdminProgresoVehiculos() {
           </tr>
         </thead>
         <tbody className="divide-y divide-[#444f68]">
-          {filteredData.length === 0 ? (
+          {displayedData.length === 0 ? (
             <tr>
               <td colSpan={6} className="text-center text-gray-400 py-6">
                 No se encontraron resultados.
               </td>
             </tr>
           ) : (
-            filteredData.map((r, index) => (
+            displayedData.map((r, index) => (
               <tr
                 key={r.id_visual}
                 className={`${
@@ -212,6 +228,45 @@ export default function AdminProgresoVehiculos() {
           )}
         </tbody>
       </table>
+    </div>
+  );
+
+  // --- UI PAGINADOR ---
+  const Paginador = () => (
+    <div className="flex items-center justify-between mt-6">
+      <div className="text-sm text-white/70">
+        Mostrando {Math.min(startIndex + 1, filteredData.length)}-
+        {Math.min(endIndex, filteredData.length)} de {filteredData.length}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+        >
+          Anterior
+        </button>
+        {pageNumbers.map((n) => (
+          <button
+            key={n}
+            onClick={() => setPage(n)}
+            className={`px-3 py-1 rounded ${
+              n === page
+                ? "bg-violet-600 text-white"
+                : "bg-[#2a2a2a] text-white"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+        >
+          Siguiente
+        </button>
+      </div>
     </div>
   );
 
@@ -251,6 +306,7 @@ export default function AdminProgresoVehiculos() {
 
       <MobileCardView />
       <ResponsiveTable />
+      <Paginador />
     </div>
   );
 }

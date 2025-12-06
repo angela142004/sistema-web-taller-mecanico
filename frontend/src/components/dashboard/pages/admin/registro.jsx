@@ -324,6 +324,23 @@ export default function App() {
     );
   }, [usuarios, selectedTab, searchTerm]);
 
+  // --- PAGINACIÓN RESPONSIVE ---
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(8);
+
+  // Reset página cuando cambian búsqueda, tab o tamaño de página
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedTab, perPage, usuarios[selectedTab]?.length]);
+
+  const total = filteredUsuarios.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const displayedUsuarios = filteredUsuarios.slice(startIndex, endIndex);
+  // --- FIN PAGINACIÓN ---
+
   const tabIcons = {
     cliente: Users,
     mecanico: Wrench,
@@ -381,12 +398,14 @@ export default function App() {
       </button>
       {/* Vista en TARJETAS para móviles */}
       <div className="block md:hidden space-y-4 mt-4">
-        {filteredUsuarios.map((u, index) => (
+        {displayedUsuarios.map((u, index) => (
           <div
             key={u.id_usuario}
             className="bg-[#1b223b] p-4 rounded-xl shadow border border-gray-700"
           >
-            <p className="text-sm text-gray-400">ID: {index + 1}</p>
+            <p className="text-sm text-gray-400">
+              ID: {startIndex + index + 1}
+            </p>
 
             <h3 className="text-lg font-bold text-white">{u.nombre}</h3>
 
@@ -461,12 +480,14 @@ export default function App() {
           </thead>
 
           <tbody>
-            {filteredUsuarios.map((u, index) => (
+            {displayedUsuarios.map((u, index) => (
               <tr
                 key={u.id_usuario}
                 className="border-b border-gray-700 hover:bg-[#1f2942] transition"
               >
-                <td className="px-6 py-4 text-white">{index + 1}</td>
+                <td className="px-6 py-4 text-white">
+                  {startIndex + index + 1}
+                </td>
 
                 <td className="px-6 py-4 text-white">{u.nombre}</td>
                 <td className="px-6 py-4 text-gray-300">{u.correo}</td>
@@ -515,6 +536,105 @@ export default function App() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* PAGINADOR RESPONSIVE */}
+      <div className="mt-4">
+        {/* Desktop: controles completos */}
+        <div className="hidden md:flex items-center justify-between">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(startIndex + 1, total)}-
+            {Math.min(endIndex, total)} de {total}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-[#1b223b] text-white p-2 rounded"
+            >
+              <option value={5}>5 / pág</option>
+              <option value={8}>8 / pág</option>
+              <option value={12}>12 / pág</option>
+            </select>
+
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+
+            <div className="flex items-center gap-1 max-w-[480px] overflow-auto px-1">
+              {pageNumbers.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`min-w-[36px] px-3 py-1 rounded text-sm ${
+                    n === page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile: compact */}
+        <div className="flex md:hidden flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-white/70">
+              {startIndex + 1} - {Math.min(endIndex, total)} de {total}
+            </div>
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-[#1b223b] text-white p-2 rounded"
+            >
+              <option value={5}>5</option>
+              <option value={8}>8</option>
+              <option value={12}>12</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex-1 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <div className="text-sm text-white/70 text-center w-24">
+              {page}/{totalPages}
+            </div>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex-1 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
 
       <UserModal

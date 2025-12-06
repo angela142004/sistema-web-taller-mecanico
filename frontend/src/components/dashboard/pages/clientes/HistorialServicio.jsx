@@ -142,12 +142,9 @@ function ControlBar({ query, setQuery, sortBy, setSortBy, onReload }) {
         >
           <RotateCcw size={16} /> Recargar
         </button>
-        <button
-          onClick={() => alert("Exportar CSV (simulado)")}
-          className="h-11 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-center gap-2"
-        >
-          <Download size={16} /> Exportar
-        </button>
+
+        {/* Export removed: se eliminó el botón Exportar para cumplir request */}
+        <div className="h-11" />
       </div>
     </div>
   );
@@ -325,11 +322,19 @@ function CardHistorial({ row, onView }) {
 
 /* ----------- Página principal ----------- */
 export default function HistorialCliente() {
+  // ...existing state...
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("fecha");
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // --- PAGINACIÓN ---
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(6);
+  // Reset página cuando cambian filtros/orden/datos
+  useEffect(() => setPage(1), [query, sortBy, perPage, rows.length]);
+  // --- FIN PAGINACIÓN ---
 
   // 🚀 Cargar datos del backend
   useEffect(() => {
@@ -383,6 +388,13 @@ export default function HistorialCliente() {
       );
   }, [rows, query, sortBy]);
 
+  // paginado aplicando sobre filtered
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const displayed = filtered.slice(startIndex, endIndex);
+
   if (loading)
     return (
       <div className="text-white/80 p-5 animate-pulse">
@@ -400,21 +412,119 @@ export default function HistorialCliente() {
         onReload={() => window.location.reload()}
       />
 
-      {filtered.length === 0 ? (
+      {displayed.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80">
           No hay servicios finalizados aún.
         </div>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((r, index) => (
+          {displayed.map((r, index) => (
             <CardHistorial
               key={r.id_historial}
-              row={{ ...r, nro: index + 1 }}
+              row={{ ...r, nro: startIndex + index + 1 }}
               onView={setSelected}
             />
           ))}
         </div>
       )}
+
+      {/* PAGINADOR RESPONSIVE */}
+      <div className="mt-4">
+        {/* Desktop: controles completos */}
+        <div className="hidden md:flex items-center justify-between">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(startIndex + 1, total)}-
+            {Math.min(endIndex, total)} de {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white/10 text-white p-2 rounded"
+            >
+              <option value={5}>5 / pág</option>
+              <option value={6}>6 / pág</option>
+              <option value={10}>10 / pág</option>
+            </select>
+
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+
+            <div className="flex items-center gap-1 max-w-[480px] overflow-auto px-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`min-w-[36px] px-3 py-1 rounded text-sm ${
+                    n === page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile: compacto */}
+        <div className="flex md:hidden flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-white/70">
+              {startIndex + 1} - {Math.min(endIndex, total)} de {total}
+            </div>
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white/10 text-white p-2 rounded"
+            >
+              <option value={5}>5</option>
+              <option value={6}>6</option>
+              <option value={10}>10</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex-1 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <div className="text-sm text-white/70 text-center w-24">
+              {page}/{totalPages}
+            </div>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex-1 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      </div>
 
       <Modal
         open={!!selected}

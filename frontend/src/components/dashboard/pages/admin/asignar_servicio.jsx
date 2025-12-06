@@ -9,6 +9,11 @@ export default function AsignarMecanico() {
   const [mecanicoSeleccionado, setMecanicoSeleccionado] = useState(null);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
 
+  // --- PAGINACIÓN ---
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(6);
+  // --- FIN PAGINACIÓN ---
+
   const formatearFecha = (fechaISO) => {
     if (!fechaISO) return "-";
     const [año, mes, dia] = fechaISO.split("T")[0].split("-");
@@ -32,7 +37,7 @@ export default function AsignarMecanico() {
           return {
             id_cotizacion: c.id_cotizacion,
             id_asignacion: asignacion?.id_asignacion || null,
-            id_mecanico_asignado: asignacion?.id_mecanico || null, // 👈 NUEVO
+            id_mecanico_asignado: asignacion?.id_mecanico || null,
             cliente: {
               nombre: c.reserva?.cliente?.usuario?.nombre || "Sin nombre",
               correo: c.reserva?.cliente?.usuario?.correo || "-",
@@ -46,11 +51,13 @@ export default function AsignarMecanico() {
             hora_inicio: c.reserva?.hora_inicio || "",
             servicio: c.reserva?.servicio?.nombre || "Sin servicio",
             mecanicoAsignado: asignacion?.mecanico?.usuario?.nombre || null,
-            respuestaCliente: c.estado,
+            // Mostrar "Asignado" si existe asignación, si no "Pendiente"
+            respuestaCliente: asignacion ? "Asignado" : "Pendiente",
           };
         });
 
         setReservas(cotizacionesConvertidas);
+        setPage(1); // reset paginador al recargar datos
       } catch (error) {
         console.error("Error cargando cotizaciones:", error);
       }
@@ -150,7 +157,7 @@ export default function AsignarMecanico() {
       );
 
       // ==========================================================
-      // 🔥 ACTUALIZAR RESERVA
+      // 🔥 ACTUALIZAR RESERVA (AHORA TAMBIÉN MARCA 'Asignado' EN respuestaCliente)
       // ==========================================================
       setReservas((prev) =>
         prev.map((r) =>
@@ -160,6 +167,7 @@ export default function AsignarMecanico() {
                 mecanicoAsignado: mecanicoSeleccionado.nombre,
                 id_asignacion: data.id_asignacion,
                 id_mecanico_asignado: mecanicoSeleccionado.id_mecanico,
+                respuestaCliente: "Asignado",
               }
             : r
         )
@@ -173,6 +181,38 @@ export default function AsignarMecanico() {
     }
   };
 
+  // =========================
+  // 📌 Ordenar reservas: Pendiente primero
+  // =========================
+  const estadoPrioridad = (texto) => {
+    if (!texto) return 2;
+    const map = { Pendiente: 0, Asignado: 1 };
+    return map[texto] ?? 2;
+  };
+
+  const sortReservas = (arr) =>
+    arr.slice().sort((a, b) => {
+      const pa = estadoPrioridad(a.respuestaCliente);
+      const pb = estadoPrioridad(b.respuestaCliente);
+      if (pa !== pb) return pa - pb;
+      // fallback: ordenar por fecha si es posible (fecha original en formato DD/MM/YYYY)
+      return (b.fecha || "").localeCompare(a.fecha || "");
+    });
+
+  // --- PAGINACIÓN: cálculos para mostrar solo la página actual ---
+  const sortedReservas = sortReservas(reservas);
+  const totalPages = Math.max(1, Math.ceil(sortedReservas.length / perPage));
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const displayedReservas = sortedReservas.slice(startIndex, endIndex);
+
+  // reset page cuando cambian la reservas (por ejemplo tras asignar)
+  useEffect(() => {
+    if (page > Math.ceil(reservas.length / perPage)) setPage(1);
+  }, [reservas, perPage]);
+  // --- FIN PAGINACIÓN ---
+
   // ====================================================
   // 🔥 UI
   // ====================================================
@@ -185,8 +225,8 @@ export default function AsignarMecanico() {
         </h3>
 
         <div>
-          {reservas.length > 0 ? (
-            reservas.map((reserva) => (
+          {displayedReservas.length > 0 ? (
+            displayedReservas.map((reserva) => (
               <div
                 key={reserva.id_cotizacion}
                 className="bg-[#2a2e44] rounded-xl p-4 mb-3 shadow-md sm:p-6"
@@ -205,9 +245,16 @@ export default function AsignarMecanico() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full text-yellow-800 bg-yellow-200">
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        reserva.respuestaCliente === "Pendiente"
+                          ? "text-yellow-800 bg-yellow-200"
+                          : "text-green-800 bg-green-200"
+                      }`}
+                    >
                       {reserva.respuestaCliente}
                     </span>
+
                     {expandedCard === reserva.id_cotizacion ? (
                       <ChevronUp className="w-5 h-5 text-gray-300" />
                     ) : (
@@ -257,6 +304,46 @@ export default function AsignarMecanico() {
           )}
         </div>
       </section>
+
+      {/* PAGINADOR */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-white/70">
+          Mostrando {Math.min(startIndex + 1, reservas.length)}-
+          {Math.min(endIndex, reservas.length)} de {reservas.length}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+          >
+            Anterior
+          </button>
+
+          {pageNumbers.map((n) => (
+            <button
+              key={n}
+              onClick={() => setPage(n)}
+              className={`px-3 py-1 rounded ${
+                n === page
+                  ? "bg-violet-600 text-white"
+                  : "bg-[#2a2a2a] text-white"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
 
       {/* MODAL */}
       {openModal && (

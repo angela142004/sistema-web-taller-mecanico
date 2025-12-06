@@ -13,6 +13,13 @@ import {
 export default function CotizacionesAdmin() {
   const [reservas, setReservas] = useState([]);
 
+  // --- PAGINACIÓN GLOBAL (compartida por sección) ---
+  const [perPage, setPerPage] = useState(6);
+  const [pagePend, setPagePend] = useState(1);
+  const [pageEn, setPageEn] = useState(1);
+  const [pageHist, setPageHist] = useState(1);
+  // --- FIN PAGINACIÓN ---
+
   // ============================================================
   // 🔥 1. OBTENER RESERVAS REALES DEL BACKEND
   // ============================================================
@@ -91,6 +98,34 @@ export default function CotizacionesAdmin() {
       (r.cotizacion.estado === "CONFIRMADO" ||
         r.cotizacion.estado === "RECHAZADO")
   );
+
+  // --- Helper de paginación (cliente-side) ---
+  const paginate = (arr, page) => {
+    const total = arr.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    const p = Math.min(Math.max(1, page), totalPages);
+    const start = (p - 1) * perPage;
+    const end = start + perPage;
+    return {
+      slice: arr.slice(start, end),
+      total,
+      totalPages,
+      start,
+      end,
+      page: p,
+    };
+  };
+
+  // Obtener slices paginados para cada sección
+  const pagPend = paginate(reservasPendientes, pagePend);
+  const pagEn = paginate(cotizacionesEnEspera, pageEn);
+  const pagHist = paginate(cotizacionesConfirmadas, pageHist);
+
+  // Reset página cuando cambian las listas
+  useEffect(() => setPagePend(1), [reservasPendientes.length, perPage]);
+  useEffect(() => setPageEn(1), [cotizacionesEnEspera.length, perPage]);
+  useEffect(() => setPageHist(1), [cotizacionesConfirmadas.length, perPage]);
+  // --- fin helper ---
 
   // ============================================================
   // 🔥 3. EL RESTO DE TU CÓDIGO SIGUE IGUAL
@@ -314,12 +349,12 @@ export default function CotizacionesAdmin() {
           Cotizar (Sin Cotización Enviada)
         </h3>
 
-        {reservasPendientes.length > 0 ? (
-          reservasPendientes.map((reserva, index) => (
+        {pagPend.slice.length > 0 ? (
+          pagPend.slice.map((reserva, idx) => (
             <ReservaCard
               key={reserva.id_reserva}
               reserva={reserva}
-              index={index}
+              index={pagPend.start + idx}
               onActionClick={abrirModalCotizacion}
               type="pendientes"
             />
@@ -329,6 +364,47 @@ export default function CotizacionesAdmin() {
             No hay reservas pendientes de cotización.
           </p>
         )}
+
+        {/* PAGINADOR SECCIÓN Pendientes */}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(pagPend.start + 1, pagPend.total)}-
+            {Math.min(pagPend.end, pagPend.total)} de {pagPend.total}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPagePend((p) => Math.max(1, p - 1))}
+              disabled={pagPend.page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            {Array.from({ length: pagPend.totalPages }, (_, i) => i + 1).map(
+              (n) => (
+                <button
+                  key={n}
+                  onClick={() => setPagePend(n)}
+                  className={`px-3 py-1 rounded ${
+                    n === pagPend.page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setPagePend((p) => Math.min(pagPend.totalPages, p + 1))
+              }
+              disabled={pagPend.page === pagPend.totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </section>
 
       <hr className="border-gray-700" />
@@ -340,12 +416,12 @@ export default function CotizacionesAdmin() {
           Enviadas (En Espera)
         </h3>
 
-        {cotizacionesEnEspera.length > 0 ? (
-          cotizacionesEnEspera.map((reserva, index) => (
+        {pagEn.slice.length > 0 ? (
+          pagEn.slice.map((reserva, idx) => (
             <ReservaCard
               key={reserva.id_reserva}
               reserva={reserva}
-              index={index}
+              index={pagEn.start + idx}
               type="en_espera"
             />
           ))
@@ -354,6 +430,47 @@ export default function CotizacionesAdmin() {
             No hay cotizaciones enviadas.
           </p>
         )}
+
+        {/* PAGINADOR SECCIÓN En Espera */}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(pagEn.start + 1, pagEn.total)}-
+            {Math.min(pagEn.end, pagEn.total)} de {pagEn.total}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPageEn((p) => Math.max(1, p - 1))}
+              disabled={pagEn.page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            {Array.from({ length: pagEn.totalPages }, (_, i) => i + 1).map(
+              (n) => (
+                <button
+                  key={n}
+                  onClick={() => setPageEn(n)}
+                  className={`px-3 py-1 rounded ${
+                    n === pagEn.page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setPageEn((p) => Math.min(pagEn.totalPages, p + 1))
+              }
+              disabled={pagEn.page === pagEn.totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </section>
 
       <hr className="border-gray-700" />
@@ -365,12 +482,12 @@ export default function CotizacionesAdmin() {
           Respuestas
         </h3>
 
-        {cotizacionesConfirmadas.length > 0 ? (
-          cotizacionesConfirmadas.map((reserva, index) => (
+        {pagHist.slice.length > 0 ? (
+          pagHist.slice.map((reserva, idx) => (
             <ReservaCard
               key={reserva.id_reserva}
               reserva={reserva}
-              index={index}
+              index={pagHist.start + idx}
               type="confirmadas"
             />
           ))
@@ -379,6 +496,47 @@ export default function CotizacionesAdmin() {
             No hay cotizaciones confirmadas o rechazadas.
           </p>
         )}
+
+        {/* PAGINADOR SECCIÓN Historial */}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(pagHist.start + 1, pagHist.total)}-
+            {Math.min(pagHist.end, pagHist.total)} de {pagHist.total}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPageHist((p) => Math.max(1, p - 1))}
+              disabled={pagHist.page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            {Array.from({ length: pagHist.totalPages }, (_, i) => i + 1).map(
+              (n) => (
+                <button
+                  key={n}
+                  onClick={() => setPageHist(n)}
+                  className={`px-3 py-1 rounded ${
+                    n === pagHist.page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setPageHist((p) => Math.min(pagHist.totalPages, p + 1))
+              }
+              disabled={pagHist.page === pagHist.totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* --------- MODALES (NO LOS MODIFIQUÉ) --------- */}

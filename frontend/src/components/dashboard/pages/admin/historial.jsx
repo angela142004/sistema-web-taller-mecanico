@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, History, Car, User, Wrench, ChevronDown } from "lucide-react";
 
 export default function HistorialServiciosPage() {
@@ -6,6 +6,11 @@ export default function HistorialServiciosPage() {
   const [filtroBusqueda, setFiltroBusqueda] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("servicio");
   const [menuAbierto, setMenuAbierto] = useState(false);
+
+  // --- PAGINACIÓN ---
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(8);
+  // --- FIN PAGINACIÓN ---
 
   // ============================
   // 🔥 Obtener historial desde backend
@@ -80,6 +85,19 @@ export default function HistorialServiciosPage() {
     filtroBusqueda.trim() === ""
       ? historial.filter((r) => r.estado?.toLowerCase() === "finalizado")
       : historial;
+
+  // --- Paginar resultado cliente-side ---
+  useEffect(() => {
+    setPage(1); // reset al cambiar filtros/búsqueda/datos por UX
+  }, [filtroBusqueda, tipoFiltro, perPage, historial.length]);
+
+  const total = historialMostrado.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const displayedHistorial = historialMostrado.slice(startIndex, endIndex);
+  // --- fin paginación ---
 
   const formatFecha = (date) =>
     new Date(date).toLocaleDateString("es-ES", {
@@ -177,9 +195,9 @@ export default function HistorialServiciosPage() {
           </thead>
 
           <tbody className="divide-y divide-white/10">
-            {historialMostrado.map((h, index) => (
+            {displayedHistorial.map((h, idx) => (
               <tr key={h.id_historial} className="hover:bg-white/5">
-                <td className="px-6 py-4 text-white">{index + 1}</td>
+                <td className="px-6 py-4 text-white">{startIndex + idx + 1}</td>
 
                 <td className="px-6 py-4 text-yellow-300">
                   {formatFecha(h.fecha)}
@@ -196,7 +214,7 @@ export default function HistorialServiciosPage() {
               </tr>
             ))}
 
-            {historialMostrado.length === 0 && (
+            {displayedHistorial.length === 0 && (
               <tr>
                 <td colSpan="7" className="px-6 py-6 text-center text-white/70">
                   No se encontraron servicios finalizados.
@@ -211,7 +229,7 @@ export default function HistorialServiciosPage() {
       {/* VISTA MÓVIL */}
       {/* ============================ */}
       <div className="md:hidden space-y-4">
-        {historialMostrado.map((h) => (
+        {displayedHistorial.map((h) => (
           <div
             key={h.id_historial}
             className="bg-white/10 p-4 rounded-xl border border-white/20 shadow-md space-y-2"
@@ -243,11 +261,114 @@ export default function HistorialServiciosPage() {
           </div>
         ))}
 
-        {historialMostrado.length === 0 && (
+        {displayedHistorial.length === 0 && (
           <div className="text-center p-6 text-white/70 border border-white/10 rounded-xl">
             No se encontraron servicios finalizados.
           </div>
         )}
+      </div>
+
+      {/* PAGINADOR */}
+      <div className="mt-4">
+        {/* Desktop / Tablet: controles completos */}
+        <div className="hidden md:flex items-center justify-between gap-4">
+          <div className="text-sm text-white/70">
+            Mostrando {Math.min(startIndex + 1, historialMostrado.length)}-
+            {Math.min(endIndex, historialMostrado.length)} de{" "}
+            {historialMostrado.length}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white/10 text-white p-2 rounded"
+            >
+              <option value={5}>5 / pág</option>
+              <option value={8}>8 / pág</option>
+              <option value={12}>12 / pág</option>
+            </select>
+
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+
+            <div className="flex items-center gap-1 max-w-[480px] overflow-auto px-1">
+              {pageNumbers.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`min-w-[36px] px-3 py-1 rounded text-sm ${
+                    n === page
+                      ? "bg-violet-600 text-white"
+                      : "bg-[#2a2a2a] text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile: versión compacta */}
+        <div className="flex md:hidden flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-white/70">
+              {startIndex + 1} - {Math.min(endIndex, historialMostrado.length)}{" "}
+              de {historialMostrado.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="bg-white/10 text-white p-2 rounded"
+              >
+                <option value={5}>5</option>
+                <option value={8}>8</option>
+                <option value={12}>12</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex-1 mr-2 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <div className="text-sm text-white/70 text-center w-24">
+              Página {page}/{totalPages}
+            </div>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex-1 ml-2 px-3 py-2 rounded bg-[#2a2a2a] text-white disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
