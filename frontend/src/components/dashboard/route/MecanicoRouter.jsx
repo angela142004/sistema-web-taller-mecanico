@@ -8,6 +8,7 @@ import Home from "../pages/mecanico/Home.jsx"; // Página principal para mecáni
 import HistorialServicios from "../pages/mecanico/HistorialServicios.jsx"; // Historial de servicios realizados
 import Perfil from "../pages/mecanico/Perfil.jsx"; // Perfil del mecánico
 import ServiciosAsignados from "../pages/mecanico/ServiciosAsignados.jsx"; // Servicios asignados al mecánico
+import Progreso from "../pages/mecanico/Progreso.jsx";
 
 function MecanicoLayout() {
   const [open, setOpen] = useState(false);
@@ -55,6 +56,7 @@ export default function MecanicoRouter() {
         <Route path="historial" element={<HistorialServicios />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="servicios-asignados" element={<ServiciosAsignados />} />
+        <Route path="progreso" element={<Progreso />} />
       </Route>
     </Routes>
   );
