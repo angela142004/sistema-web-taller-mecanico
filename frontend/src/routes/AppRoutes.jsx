@@ -3,6 +3,7 @@ import Home from "../pages/Home";
 import Register from "../pages/Register";
 import Nosotros from "../pages/Nosotros";
 import Servicios from "../pages/Servicios";
+import ConfirmarCuenta from "../pages/ConfirmarCuenta";
 import Procesos from "../pages/Procesos";
 import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardCliente from "../pages/DashboardCliente";
@@ -77,6 +78,14 @@ const AppRoutes = () => (
       element={
         <PublicLayout>
           <Procesos />
+        </PublicLayout>
+      }
+    />
+    <Route
+      path="/confirmar/:token"
+      element={
+        <PublicLayout>
+          <ConfirmarCuenta />
         </PublicLayout>
       }
     />

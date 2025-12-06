@@ -4,6 +4,7 @@ import {
   registerUser,
   loginUser,
   getUsers,
+  confirmAccount,
   getUserById,
   updateUser,
   updateUserr,
@@ -20,7 +21,7 @@ const router = Router();
 
 // Registro de usuario
 router.post("/register", registerUser);
-
+router.get("/confirmar/:token", confirmAccount);
 // Login de usuario
 router.post("/login", loginUser);
 

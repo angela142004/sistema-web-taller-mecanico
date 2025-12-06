@@ -29,6 +29,7 @@ import mecanicosRoutes from "./src/routes/mecanicos.routes.js";
 import asignacionesRoutes from "./src/routes/asignacion.routes.js";
 import asignacionClienteRoutes from "./src/routes/asignacion.cliente.routes.js";
 import historialRoutes from "./src/routes/historial.routes.js";
+import repuestosRoutes from "./src/routes/repuestos.routes.js";
 
 dotenv.config();
 
@@ -84,7 +85,7 @@ app.use("/mecanica/cotizaciones-cliente", cotizacionClienteRoutes);
 // 👨‍🔧 ADMIN/MECÁNICO
 app.use("/mecanica/mecanicos", mecanicosRoutes);
 app.use("/mecanica/asignaciones", asignacionesRoutes);
-
+app.use("/mecanica/repuestos", repuestosRoutes);
 // 👤 CLIENTE
 app.use("/mecanica/asignaciones-cliente", asignacionClienteRoutes);
 app.use("/mecanica/historial", historialRoutes);
