@@ -281,7 +281,7 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
           </div>
           <div className="flex flex-col gap-2 mt-2">
             <button
-              onClick={() => navigate("/dashboard/cliente/configuracion")}
+              onClick={() => navigate("/dashboard/admin/configuracion")}
               className="flex items-center justify-center gap-2 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-sm transition"
             >
               <Settings size={16} /> Editar perfil
