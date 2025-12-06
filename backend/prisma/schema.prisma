@@ -53,8 +53,12 @@ model Usuarios {
   foto        String?
   
   // === NUEVOS CAMPOS ===
-  confirmado  Boolean @default(false) // Por defecto NO está confirmado
-  token       String? // Aquí guardaremos el código temporal
+  confirmado  Boolean @default(false)
+  token       String? 
+  
+  // ✅ AQUÍ FALTABA ESTA LÍNEA (El DNI)
+  dni String? @unique @db.VarChar(8)
+
 
   cliente  Clientes?
   mecanico Mecanicos?

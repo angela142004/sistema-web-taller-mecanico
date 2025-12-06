@@ -5,6 +5,7 @@ import {
   loginUser,
   getUsers,
   confirmAccount,
+  consultarDNI,
   getUserById,
   updateUser,
   updateUserr,
@@ -24,6 +25,7 @@ router.post("/register", registerUser);
 router.get("/confirmar/:token", confirmAccount);
 // Login de usuario
 router.post("/login", loginUser);
+router.get("/consulta-dni/:dni", consultarDNI);
 
 // Obtener todos los usuarios (protegido con JWT)
 router.get("/users", verifyToken, getUsers);

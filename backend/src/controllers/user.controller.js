@@ -13,63 +13,105 @@ const prisma = new PrismaClient();
  */
 export const registerUser = async (req, res) => {
   try {
-    const { nombre, correo, contraseña, rol } = req.body;
+    const {
+      dni,
+      nombre,
+      correo,
+      contraseña,
+      rol,
+      telefono,
+      direccion,
+      especialidad,
+      fechaIngreso,
+    } = req.body;
 
-    if (!nombre || !correo || !contraseña) {
+    // 1. Validaciones básicas
+    if (!dni || !nombre || !correo || !contraseña) {
       return res
         .status(400)
-        .json({ message: "Todos los campos son obligatorios" });
+        .json({ message: "DNI, Nombre, Correo y Contraseña son obligatorios" });
     }
 
-    // 1. VALIDACIÓN DE GMAIL 📧
+    if (dni.length !== 8) {
+      return res.status(400).json({ message: "El DNI debe tener 8 dígitos" });
+    }
+
     if (!correo.endsWith("@gmail.com")) {
       return res
         .status(400)
         .json({ message: "Solo se permiten correos de Gmail (@gmail.com)" });
     }
 
-    const existingUser = await prisma.usuarios.findUnique({
-      where: { correo },
-    });
-    if (existingUser) {
-      return res.status(400).json({ message: "Usuario ya existe" });
-    }
-
-    const hashedPassword = await bcrypt.hash(contraseña, 10);
-
-    // Generar un token único aleatorio
-    const tokenConfirmacion = crypto.randomBytes(20).toString("hex");
-
-    // Crear usuario (confirmado = false por defecto en BD)
-    const newUser = await prisma.usuarios.create({
-      data: {
-        nombre,
-        correo,
-        contraseña: hashedPassword,
-        rol: "cliente", // Forzamos cliente por defecto en registro público
-        token: tokenConfirmacion, // Guardamos el token
-        confirmado: false,
+    // 2. Verificar duplicados (DNI o Correo)
+    // CORRECCIÓN: Ahora validamos por DNI, no por Nombre
+    const existingUser = await prisma.usuarios.findFirst({
+      where: {
+        OR: [{ correo: correo }, { dni: dni }],
       },
     });
 
-    // Crear registro en tabla clientes
-    await prisma.clientes.create({
-      data: { id_usuario: newUser.id_usuario, telefono: "", direccion: "" },
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "El DNI o el Correo ya están registrados" });
+    }
+
+    // 3. Preparar datos
+    const rolValido = ["cliente", "mecanico", "admin"];
+    const rolFinal = rolValido.includes(rol) ? rol : "cliente";
+    const hashedPassword = await bcrypt.hash(contraseña, 10);
+    const tokenConfirmacion = crypto.randomBytes(20).toString("hex");
+
+    // 4. Crear usuario
+    const newUser = await prisma.usuarios.create({
+      data: {
+        dni,
+        nombre,
+        correo,
+        contraseña: hashedPassword,
+        rol: rolFinal,
+        confirmado: false,
+        token: tokenConfirmacion,
+      },
     });
 
-    // 2. ENVIAR CORREO 📧
-    // Ajusta el enlace al puerto de tu FRONTEND (ej: 5173)
+    // 5. Crear roles específicos
+    if (rolFinal === "cliente") {
+      await prisma.clientes.create({
+        data: {
+          id_usuario: newUser.id_usuario,
+          telefono: telefono || "",
+          direccion: direccion || "",
+        },
+      });
+    } else if (rolFinal === "mecanico") {
+      await prisma.mecanicos.create({
+        data: {
+          id_usuario: newUser.id_usuario,
+          telefono: telefono || "",
+          especialidad: especialidad || "",
+          fecha_ingreso: fechaIngreso ? new Date(fechaIngreso) : new Date(),
+        },
+      });
+    }
+
+    // 6. ENVIAR CORREO
     const urlConfirmacion = `http://localhost:5173/confirmar/${tokenConfirmacion}`;
 
     await transporter.sendMail({
-      from: '"Soporte Taller Mecánico" <tu_correo_real@gmail.com>',
+      from: '"Sistema Taller" <tucorreo@gmail.com>', // Asegúrate que esto coincida con mailer.js
       to: correo,
       subject: "Confirma tu cuenta - Taller Mecánico",
       html: `
-        <h1>Bienvenido ${nombre}</h1>
-        <p>Para activar tu cuenta, por favor haz clic en el siguiente enlace:</p>
-        <a href="${urlConfirmacion}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirmar Cuenta</a>
-        <p>Si no te registraste, ignora este correo.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <h2 style="color: #4F46E5; text-align: center;">Bienvenido, ${nombre}</h2>
+          <p style="text-align: center;">Tu DNI registrado es: <b>${dni}</b></p>
+          <p>Gracias por registrarte. Para activar tu cuenta y poder iniciar sesión, por favor confirma tu correo electrónico:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${urlConfirmacion}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmar mi Cuenta</a>
+          </div>
+          <p style="color: #666; font-size: 12px; text-align: center;">Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
+        </div>
       `,
     });
 
@@ -77,13 +119,12 @@ export const registerUser = async (req, res) => {
       message: "Usuario registrado. Revisa tu Gmail para confirmar la cuenta.",
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error registro:", error);
     res
       .status(500)
-      .json({ message: "Error al registrar", error: error.message });
+      .json({ message: "Error al registrar usuario", error: error.message });
   }
 };
-
 /**
  * @desc Iniciar sesión
 /**
@@ -99,11 +140,9 @@ export const loginUser = async (req, res) => {
 
     // 3. VALIDAR SI ESTÁ CONFIRMADO
     if (!user.confirmado) {
-      return res
-        .status(403)
-        .json({
-          message: "Tu cuenta no ha sido confirmada. Revisa tu correo.",
-        });
+      return res.status(403).json({
+        message: "Tu cuenta no ha sido confirmada. Revisa tu correo.",
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(contraseña, user.contraseña);
@@ -475,5 +514,68 @@ export const confirmAccount = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error al confirmar cuenta" });
+  }
+};
+
+/**
+ * @desc CONSULTAR DNI (Versión ApiMigo - Método POST)
+ */
+export const consultarDNI = async (req, res) => {
+  const { dni } = req.params;
+
+  if (!dni || dni.length !== 8) {
+    return res.status(400).json({ message: "El DNI debe tener 8 dígitos" });
+  }
+
+  // --- MODO SIMULACIÓN (Siempre activo para pruebas) ---
+  if (dni === "12345678") {
+    return res.json({ nombreCompleto: "Juan Perez Simulador" });
+  }
+
+  try {
+    // ⚠️ TU TOKEN DE APIMIGO
+    const token =
+      "JzlfyCCBbygPEXNwGH75I3u0ldHVmNhkWJvuRaUZvo0ebz4iWmCMEipXMTYt";
+
+    // URL PARA POST (Según documentación estándar)
+    const url = "https://api.migo.pe/api/v1/dni";
+
+    const response = await fetch(url, {
+      method: "POST", // <--- CAMBIO IMPORTANTE: Ahora es POST
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        token: token,
+        dni: dni,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Error ApiMigo:", response.status);
+      return res
+        .status(404)
+        .json({
+          message: "Error al consultar API externa o DNI no encontrado",
+        });
+    }
+
+    const data = await response.json();
+
+    // Verificamos si trajo datos exitosos
+    // ApiMigo suele devolver { success: true, nombre: "...", ... }
+    if (data.success || data.nombre) {
+      return res.json({
+        nombreCompleto: `${data.nombre} ${data.apellidoPaterno || ""} ${
+          data.apellidoMaterno || ""
+        }`.trim(),
+      });
+    } else {
+      return res.status(404).json({ message: "DNI no encontrado" });
+    }
+  } catch (error) {
+    console.error("Error Servidor DNI:", error);
+    res.status(500).json({ message: "Error interno al consultar DNI" });
   }
 };
