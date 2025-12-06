@@ -70,10 +70,9 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           {/* Enlaces del mecánico */}
           <Item to="/dashboard/mecanico" icon={Home} label="Inicio" onClick={onClose} />
           <Item to="/dashboard/mecanico/servicios-asignados" icon={Wrench} label="Servicios Asignados" onClick={onClose} />
-          <Item to="/dashboard/mecanico/historial" icon={Clock} label="Historial de Servicios" onClick={onClose} />
-          <Item to="/dashboard/mecanico/perfil" icon={Users} label="Perfil" onClick={onClose} />
           <Item to="/dashboard/mecanico/progreso" icon={Gauge} label="Progreso de Vehículos" onClick={onClose} />
-          <Item to="/dashboard/mecanico/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
+          <Item to="/dashboard/mecanico/historial" icon={Clock} label="Historial de Servicios" onClick={onClose} />
+          <Item to="/dashboard/mecanico/perfil" icon={Settings} label="Configuración" onClick={onClose} />
         </nav>
 
         {/* Tarjeta inferior */}
