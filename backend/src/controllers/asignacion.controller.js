@@ -22,7 +22,7 @@ export const crearAsignacion = async (req, res) => {
         id_mecanico,
         fecha_asignacion: new Date(),
         estado: estado || "pendiente",
-        observaciones: observaciones || null,
+        observaciones: observaciones || "pendiente_mecanico",
       },
     });
 
@@ -210,5 +210,23 @@ export const eliminarAsignacion = async (req, res) => {
   } catch (error) {
     console.error("Error al eliminar asignación:", error);
     res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+export const marcarRecepcion = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const asignacion = await prisma.asignaciones.update({
+      where: { id_asignacion: Number(id) },
+      data: {
+        confirmado_por_mecanico: true, // ✅ PERSISTENTE
+        observaciones: "recibido_por_mecanico",
+      },
+    });
+
+    res.json({ message: "Recepción confirmada", asignacion });
+  } catch (error) {
+    res.status(500).json({ error: "Error al confirmar recepción" });
   }
 };

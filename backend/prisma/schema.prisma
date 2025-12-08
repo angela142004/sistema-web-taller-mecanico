@@ -179,6 +179,7 @@ model Asignaciones {
   fecha_asignacion DateTime         @default(now()) @db.Date
   estado           EstadoAsignacion
   observaciones    String?
+  confirmado_por_mecanico Boolean @default(false) // ✅ NUEVO, SEGURO
 
   cotizacion Cotizaciones @relation(fields: [id_cotizacion], references: [id_cotizacion], onDelete: Cascade)
   mecanico   Mecanicos    @relation(fields: [id_mecanico], references: [id_mecanico], onDelete: Cascade)

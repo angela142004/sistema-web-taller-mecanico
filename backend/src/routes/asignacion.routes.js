@@ -6,6 +6,7 @@ import {
   actualizarAsignacion,
   actualizarEstadoAsignacion,
   eliminarAsignacion,
+  marcarRecepcion,
 } from "../controllers/asignacion.controller.js";
 
 const router = Router();
@@ -24,6 +25,9 @@ router.put("/:id", actualizarAsignacion);
 
 // 📌 Actualizar solo el estado
 router.patch("/:id/estado", actualizarEstadoAsignacion);
+
+// 📌 Marcar recepción
+router.patch("/:id/recepcion", marcarRecepcion);
 
 // 📌 Eliminar una asignación
 router.delete("/:id", eliminarAsignacion);
