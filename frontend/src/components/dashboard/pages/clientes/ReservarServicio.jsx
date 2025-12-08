@@ -460,6 +460,29 @@ export default function ReservarServicio() {
     return s ? Number(xToNumberSafe(s.duracion)) : 0;
   }, [servicio, servicios]);
 
+  // nombre del servicio (valor mostrado en el Combo)
+  const servicioNombreValor = useMemo(() => {
+    if (!servicio) return "";
+    const sObj = servicios.find(
+      (x) =>
+        String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
+        x.nombre === servicio
+    );
+    return sObj
+      ? `${sObj.nombre} — ${sObj.duracion ?? 0} min`
+      : String(servicio);
+  }, [servicio, servicios]);
+
+  // opciones para el Combo (nombres)
+  const servicioOptions = useMemo(() => {
+    // Si tenemos servicios desde el backend, mostramos "Nombre — X min"
+    if (servicios.length > 0) {
+      return servicios.map((s) => `${s.nombre} — ${s.duracion ?? 0} min`);
+    }
+    // fallback a la lista local (sin duración)
+    return SERVICIOS;
+  }, [servicios]);
+
   // helper: ensure numeric fallback
   function xToNumberSafe(v) {
     const n = Number(v);
@@ -645,44 +668,31 @@ export default function ReservarServicio() {
           <label className="text-white font-semibold">
             Seleccionar servicio
           </label>
-          <div className="relative">
-            <select
-              value={servicio}
-              onChange={(e) => setServicio(e.target.value)}
-              className={`${pill} appearance-none pr-10`}
-            >
-              <option value="" disabled>
-                {loading ? "Cargando servicios..." : "Seleccionar servicio"}
-              </option>
-
-              {/* Si llegan servicios desde backend, los mostramos; sino mostramos la lista local */}
-              {servicios.length > 0
-                ? servicios.map((s) => (
-                    <option
-                      key={
-                        s.id_servicio ??
-                        s.id ??
-                        s.idServicio ??
-                        s.nombre ??
-                        JSON.stringify(s)
-                      }
-                      value={
-                        s.id_servicio ?? s.id ?? s.idServicio ?? s.nombre ?? ""
-                      }
-                    >
-                      {s.nombre}
-                      {s.duracion ? ` — ${s.duracion} min` : ""}
-                    </option>
-                  ))
-                : SERVICIOS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-            </select>
-            <ChevronDown
-              size={18}
-              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white"
+          <div>
+            <Combo
+              label=""
+              value={servicioNombreValor}
+              onChange={(val) => {
+                // val puede venir como "Nombre — 60 min" — extraemos el nombre antes del " — "
+                const name = String(val).split(" — ")[0].trim();
+                const found = servicios.find((s) => s.nombre === name);
+                if (found) {
+                  setServicio(
+                    found.id_servicio ?? found.id ?? found.idServicio
+                  );
+                } else {
+                  // usuario escribió texto libre o eligió opción sin id
+                  setServicio(val);
+                }
+              }}
+              options={servicioOptions}
+              placeholder={
+                loading
+                  ? "Cargando servicios..."
+                  : "Buscar o seleccionar servicio"
+              }
+              showUseOption={false}
+              showChevron={true}
             />
           </div>
         </div>

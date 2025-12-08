@@ -5,15 +5,15 @@ import Topbar from "../components/TopbarAdmin.jsx";
 
 // páginas del admin
 import Home from "../pages/admin/Inicio.jsx";
-import Servicio from "../pages/admin/asignar_servicio.jsx"
+import Servicio from "../pages/admin/asignar_servicio.jsx";
 import Cotizaciones from "../pages/admin/cotizaciones.jsx";
-import Repuestos  from "../pages/admin/repuestos.jsx"
+import Repuestos from "../pages/admin/repuestos.jsx";
 import Registro from "../pages/admin/registro.jsx";
-import Historial from "../pages/admin/historial.jsx"
+import Historial from "../pages/admin/historial.jsx";
 import Configuracion from "../pages/admin/configuracion.jsx";
 import Reserva from "../pages/admin/reserva.jsx";
 import Progreso from "../pages/admin/progreso.jsx";
-
+import Servicios from "../pages/admin/servicios.jsx";
 
 function AdminLayout() {
   const [open, setOpen] = useState(false);
@@ -67,9 +67,7 @@ export default function AdminRouter() {
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="reserva" element={<Reserva />} />
         <Route path="progreso" element={<Progreso />} />
-
-
-
+        <Route path="servicios" element={<Servicios />} />
       </Route>
     </Routes>
   );

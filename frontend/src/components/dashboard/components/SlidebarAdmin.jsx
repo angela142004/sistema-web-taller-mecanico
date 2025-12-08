@@ -25,7 +25,11 @@ const Item = ({ to, icon: Icon, label, onClick }) => {
       to={to}
       onClick={onClick}
       className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-200
-        ${isActive ? "bg-white/10 text-white font-medium" : "text-white/80 hover:bg-white/5"}`}
+        ${
+          isActive
+            ? "bg-white/10 text-white font-medium"
+            : "text-white/80 hover:bg-white/5"
+        }`}
     >
       {/* Indicador lateral violeta */}
       <span
@@ -45,7 +49,11 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
       <div
         onClick={onClose}
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden
-        ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        ${
+          isOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
       />
 
       <aside
@@ -70,25 +78,74 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
 
         {/* Navegación */}
         <nav className="p-3 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3a3370] scrollbar-track-transparent">
+          <Item
+            to="/dashboard/admin"
+            icon={Home}
+            label="Inicio"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin" icon={Home} label="Inicio" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/reserva"
+            icon={CalendarCheck2}
+            label="Reservas"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/reserva" icon={CalendarCheck2} label="Reservas" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/cotizaciones"
+            icon={FileText}
+            label="Cotizaciones"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/cotizaciones" icon={FileText} label="Cotizaciones" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/servicio"
+            icon={Wrench}
+            label="Asignar Mecánico"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/servicio" icon={Wrench} label="Asignar Mecánico" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/progreso"
+            icon={Gauge}
+            label="Progreso de Vehículos"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/progreso" icon={Gauge} label="Progreso de Vehículos" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/repuestos"
+            icon={Car}
+            label="Inventario de Repuestos"
+            onClick={onClose}
+          />
+          <Item
+            to="/dashboard/admin/servicios"
+            icon={Boxes}
+            label="Gestión de Servicios"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/repuestos" icon={Car} label="Inventario de Repuestos" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/registro"
+            icon={Users}
+            label="Gestión de Usuarios"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/registro" icon={Users} label="Gestión de Usuarios" onClick={onClose} />
+          <Item
+            to="/dashboard/admin/historial"
+            icon={Clock}
+            label="Historial"
+            onClick={onClose}
+          />
 
-          <Item to="/dashboard/admin/historial" icon={Clock} label="Historial" onClick={onClose} />
-
-          <Item to="/dashboard/admin/configuracion" icon={Settings} label="Configuración" onClick={onClose} />
-
+          <Item
+            to="/dashboard/admin/configuracion"
+            icon={Settings}
+            label="Configuración"
+            onClick={onClose}
+          />
         </nav>
 
         {/* Tarjeta inferior */}
