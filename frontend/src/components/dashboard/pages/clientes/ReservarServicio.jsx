@@ -175,9 +175,12 @@ const TIMES = [
   "10:00",
   "11:00",
   "12:00",
-  "14:00",
+  "13:00",
   "15:00",
   "16:00",
+  "17:00",
+  "18:00",
+  "19:00",
 ];
 
 /* Estilo pill */
@@ -341,6 +344,109 @@ export default function ReservarServicio() {
   // Añadir estado para vehículo seleccionado
   const [vehiculoId, setVehiculoId] = useState(""); // id del vehículo elegido
 
+  // --- Disponibilidad: máximo reservas = número de mecánicos registrados ---
+  const [availabilityCount, setAvailabilityCount] = useState(0);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [mecanicosCount, setMecanicosCount] = useState(0);
+  const isSlotFull =
+    mecanicosCount > 0 ? availabilityCount >= mecanicosCount : true;
+  const canCheckAvailability = Boolean(
+    fecha && hora && servicio && mecanicosCount > 0
+  );
+  const availableSlots = Math.max(0, mecanicosCount - availabilityCount);
+
+  // Cargar cantidad de mecánicos
+  const fetchMecanicosCount = async () => {
+    try {
+      const res = await fetch(`${API}/mecanica/mecanicos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        setMecanicosCount(0);
+        return;
+      }
+      const data = await res.json();
+      setMecanicosCount(Array.isArray(data) ? data.length : 0);
+    } catch (e) {
+      setMecanicosCount(0);
+    }
+  };
+
+  // verificar disponibilidad consultando reservas del backend y contando coincidencias
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      if (!canCheckAvailability) {
+        setAvailabilityCount(0);
+        return;
+      }
+
+      setCheckingAvailability(true);
+      try {
+        const res = await fetch(`${API}/mecanica/reservas`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!res.ok) {
+          if (!mounted) return;
+          setAvailabilityCount(0);
+          setCheckingAvailability(false);
+          return;
+        }
+
+        const all = await res.json();
+
+        // resolver id_servicio si servicio guarda nombre o id
+        const sObj = servicios.find(
+          (x) =>
+            String(x.id_servicio ?? x.id ?? x.idServicio) ===
+              String(servicio) || x.nombre === servicio
+        );
+        const idServicio = sObj?.id_servicio ?? sObj?.id ?? sObj?.idServicio;
+
+        if (!idServicio) {
+          // no podemos chequear si no tenemos id real
+          if (!mounted) return;
+          setAvailabilityCount(0);
+          setCheckingAvailability(false);
+          return;
+        }
+
+        // contar coincidencias en backend (fecha comparada como YYYY-MM-DD)
+        const cnt = all.filter((r) => {
+          const rDate = r.fecha
+            ? new Date(r.fecha).toISOString().split("T")[0]
+            : "";
+          return (
+            String(rDate) === String(fecha) &&
+            String(r.hora_inicio) === String(hora) &&
+            Number(r.id_servicio) === Number(idServicio)
+          );
+        }).length;
+
+        if (!mounted) return;
+        setAvailabilityCount(cnt);
+      } catch (e) {
+        if (!mounted) return;
+        setAvailabilityCount(0);
+      } finally {
+        if (mounted) setCheckingAvailability(false);
+      }
+    };
+
+    // aseguramos tener el conteo de mecanicos antes de check
+    if (mecanicosCount === 0) {
+      fetchMecanicosCount().then(check);
+    } else {
+      check();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [fecha, hora, servicio, servicios, API, token, mecanicosCount]);
+  // --- fin disponibilidad ---
+
   // Cargar servicios y vehículos al montar
   useEffect(() => {
     fetchServicios();
@@ -490,7 +596,9 @@ export default function ReservarServicio() {
   }
 
   // sustituir la validación original por exigir vehiculoId
-  const canConfirm = Boolean(vehiculoId && servicio && fecha && hora);
+  const canConfirm = Boolean(
+    vehiculoId && servicio && fecha && hora && !isSlotFull
+  );
 
   // calcular fechas ISO
   const buildDateTimes = () => {
@@ -517,16 +625,14 @@ export default function ReservarServicio() {
   const handleConfirm = async () => {
     setError("");
     setSuccess("");
-    if (!canConfirm) {
+    if (!vehiculoId || !servicio || !fecha || !hora) {
       setError("Completa todos los campos y selecciona un vehículo.");
       return;
     }
+
     setSubmitting(true);
     try {
-      // usar vehiculoId (seleccionado por el usuario)
-      const idVehiculo = Number(vehiculoId);
-
-      // encontrar id_servicio real
+      // Resolver id_servicio real (obligatorio para comprobar disponibilidad)
       const sObj = servicios.find(
         (x) =>
           String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
@@ -534,11 +640,60 @@ export default function ReservarServicio() {
       );
       const idServicio = sObj?.id_servicio ?? sObj?.id ?? sObj?.idServicio;
 
+      if (!idServicio) {
+        setError("Selecciona un servicio válido de la lista.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 1) Obtener número de mecánicos (capacidad actual)
+      const resMec = await fetch(`${API}/mecanica/mecanicos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const mecanicosData = resMec.ok ? await resMec.json() : [];
+      const mecanicosActivos = Array.isArray(mecanicosData)
+        ? mecanicosData.length
+        : 0;
+
+      if (mecanicosActivos <= 0) {
+        setError("No hay mecánicos disponibles en este momento.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 2) Obtener reservas actuales y contar coincidencias (fecha, hora, servicio)
+      const resAll = await fetch(`${API}/mecanica/reservas`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const all = resAll.ok ? await resAll.json() : [];
+
+      const reservasCoincidentes = (Array.isArray(all) ? all : []).filter(
+        (r) => {
+          const rDate = r.fecha
+            ? new Date(r.fecha).toISOString().split("T")[0]
+            : "";
+          return (
+            String(rDate) === String(fecha) &&
+            String(r.hora_inicio) === String(hora) &&
+            Number(r.id_servicio) === Number(idServicio)
+          );
+        }
+      ).length;
+
+      if (reservasCoincidentes >= mecanicosActivos) {
+        setError(
+          `No hay disponibilidad: ya hay ${reservasCoincidentes} reserva(s) para ese servicio a las ${hora} del ${fecha}. Capacidad: ${mecanicosActivos}.`
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      // 3) Si hay espacio, crear reserva
       const payload = {
-        id_vehiculo: idVehiculo,
-        id_servicio: Number(idServicio ?? servicio),
-        fecha: fecha, // <-- sin T, sin horas
-        hora_inicio: hora, // <-- solo HH:mm
+        id_vehiculo: Number(vehiculoId),
+        id_servicio: Number(idServicio),
+        fecha: fecha, // YYYY-MM-DD
+        hora_inicio: hora, // HH:mm
       };
 
       const res = await fetch(`${API}/mecanica/reservas`, {
@@ -551,12 +706,17 @@ export default function ReservarServicio() {
       });
 
       if (!res.ok) {
+        // manejar 409 y otros errores con mensajes del backend
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Error al crear la reserva");
+        const msg =
+          err.message || err.error || "Error al crear la reserva (server)";
+        setError(msg);
+        setSubmitting(false);
+        return;
       }
 
       setSuccess("Reserva creada correctamente ✅");
-      // limpiar formulario (o mantener según UX)
+      // limpiar formulario
       setMarca("");
       setModelo("");
       setServicio("");
@@ -564,6 +724,7 @@ export default function ReservarServicio() {
       setHora("");
       setVehiculoId("");
     } catch (e) {
+      console.error(e);
       setError(e?.message || "Error al confirmar reserva");
     } finally {
       setSubmitting(false);
@@ -587,6 +748,25 @@ export default function ReservarServicio() {
       {error && (
         <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300">
           {error}
+        </div>
+      )}
+
+      {/* Disponibilidad info */}
+      {canCheckAvailability && (
+        <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 flex items-center gap-3">
+          {checkingAvailability ? (
+            <span>Comprobando disponibilidad…</span>
+          ) : isSlotFull ? (
+            <span className="text-red-400 font-semibold">
+              Lo sentimos — ya se alcanzó la capacidad ({mecanicosCount}) para
+              este servicio en esa fecha y hora.
+            </span>
+          ) : (
+            <span className="text-green-300">
+              Disponibilidad: {availableSlots} de {mecanicosCount} espacios
+              libres para esa fecha/hora.
+            </span>
+          )}
         </div>
       )}
 

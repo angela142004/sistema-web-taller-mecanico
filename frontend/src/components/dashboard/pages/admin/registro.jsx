@@ -55,6 +55,7 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
     direccion: "",
     especialidad: "",
     fechaIngreso: "",
+    dni: "",
     id_usuario: undefined,
   });
 
@@ -68,8 +69,8 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
         telefono: user.telefono || "",
         direccion: user.direccion || "",
         especialidad: user.especialidad || "",
-        fechaIngreso:
-          user.fechaIngreso || user.fecha_ingreso?.split("T")[0] || "",
+        fechaIngreso: user.fechaIngreso || "",
+        dni: user.dni || "",
       });
     } else {
       setFormData({
@@ -80,6 +81,7 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
         direccion: "",
         especialidad: "",
         fechaIngreso: "",
+        dni: "",
       });
     }
   }, [user]);
@@ -120,13 +122,34 @@ const UserModal = ({ isOpen, onClose, user, userType, onSave }) => {
       ? [
           { name: "telefono", label: "Teléfono", type: "text" },
           { name: "direccion", label: "Dirección", type: "text" },
+          { name: "dni", label: "DNI (opcional)", type: "text" },
         ]
       : userType === "mecanico"
       ? [
           { name: "telefono", label: "Teléfono", type: "text" },
           { name: "especialidad", label: "Especialidad", type: "text" },
+          {
+            name: "fechaIngreso",
+            label: "Fecha Ingreso",
+            type: "date",
+          },
+          // DNI requerido para mecánico al crear
+          {
+            name: "dni",
+            label: "DNI (8 dígitos)",
+            type: "text",
+            required: !isEditing,
+          },
         ]
-      : []),
+      : [
+          // Admin: pedir DNI también (requerido en creación)
+          {
+            name: "dni",
+            label: "DNI (8 dígitos)",
+            type: "text",
+            required: !isEditing,
+          },
+        ]),
   ];
 
   return (
@@ -207,12 +230,14 @@ export default function App() {
           ...u,
           displayId:
             cliente?.id_cliente ?? mecanico?.id_mecanico ?? u.id_usuario,
+
           telefono: cliente?.telefono ?? mecanico?.telefono ?? "",
           direccion: cliente?.direccion ?? "",
           especialidad: mecanico?.especialidad ?? "",
           fechaIngreso: mecanico?.fecha_ingreso
             ? mecanico.fecha_ingreso.split("T")[0]
             : "",
+          dni: u.dni ?? "",
         };
       });
 
@@ -227,59 +252,113 @@ export default function App() {
     loadUsuarios();
   }, [selectedTab]);
 
+  // reemplazamos la función handleSaveUser para ajustar payloads a user.controller
   const handleSaveUser = async (data, isEditing) => {
     try {
       const token = localStorage.getItem("token");
 
-      let payload = {
-        nombre: data.nombre,
-        correo: data.correo,
-        rol: selectedTab,
-      };
-
-      if (data.contraseña && data.contraseña.trim() !== "") {
-        payload.contraseña = data.contraseña;
+      // Validación de correo según backend (solo Gmail permitidos)
+      if (
+        !data.correo ||
+        !String(data.correo).toLowerCase().endsWith("@gmail.com")
+      ) {
+        throw new Error("El correo debe ser un Gmail (@gmail.com).");
       }
 
+      if (!isEditing) {
+        // Validaciones DNI según rol
+        if (selectedTab !== "cliente") {
+          if (!data.dni || String(data.dni).trim().length !== 8) {
+            throw new Error(
+              "DNI obligatorio de 8 dígitos para mecánico/admin."
+            );
+          }
+        } else {
+          // cliente: si proporciona dni debe ser de 8 dígitos
+          if (data.dni && String(data.dni).trim().length !== 8) {
+            throw new Error("DNI debe tener 8 dígitos si se proporciona.");
+          }
+        }
+
+        // --- CREACIÓN: /mecanica/register espera campos en el root ---
+        const payload = {
+          dni: data.dni || "",
+          nombre: data.nombre,
+          correo: data.correo,
+          contraseña: data.contraseña || "temporal123",
+          rol: selectedTab,
+          telefono: data.telefono || "",
+          direccion: data.direccion || "",
+          especialidad: data.especialidad || "",
+          fechaIngreso: data.fechaIngreso || null,
+        };
+
+        const res = await fetch(`${API_BASE}/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || "Error al crear usuario");
+        }
+
+        await loadUsuarios();
+        showNotification("Usuario creado correctamente", "success");
+        return;
+      }
+
+      // --- EDICIÓN: uso PUT /mecanica/users/:id con campos que acepta updateUser ---
+      const updatePayload = {};
+      if (data.nombre) updatePayload.nombre = data.nombre;
+      if (data.correo) {
+        if (!String(data.correo).toLowerCase().endsWith("@gmail.com")) {
+          throw new Error("El correo debe ser un Gmail (@gmail.com).");
+        }
+        updatePayload.correo = data.correo;
+      }
+      if (data.contraseña && data.contraseña.trim() !== "")
+        updatePayload.contraseña = data.contraseña;
+      if (selectedTab) updatePayload.rol = selectedTab;
+
+      // Campos relacionados (cliente / mecánico)
       if (selectedTab === "cliente") {
-        payload.telefono = data.telefono || "";
-        payload.direccion = data.direccion || "";
+        if (data.telefono !== undefined) updatePayload.telefono = data.telefono;
+        if (data.direccion !== undefined)
+          updatePayload.direccion = data.direccion;
+        if (data.dni !== undefined) updatePayload.dni = data.dni;
+      } else if (selectedTab === "mecanico") {
+        if (data.telefono !== undefined) updatePayload.telefono = data.telefono;
+        if (data.especialidad !== undefined)
+          updatePayload.especialidad = data.especialidad;
+        if (data.fechaIngreso !== undefined)
+          updatePayload.fecha_ingreso = data.fechaIngreso; // backend espera fecha_ingreso
       }
 
-      if (selectedTab === "mecanico") {
-        payload.telefono = data.telefono || "";
-        payload.especialidad = data.especialidad || "";
-      }
-
-      if (isEditing && !data.contraseña) delete payload.contraseña;
-
-      const url = isEditing
-        ? `${API_BASE}/users/${data.id_usuario}`
-        : `${API_BASE}/register`;
-
-      const method = isEditing ? "PUT" : "POST";
-
+      const url = `${API_BASE}/users/${data.id_usuario}`;
       const res = await fetch(url, {
-        method,
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(updatePayload),
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Error al actualizar usuario");
+      }
 
       await loadUsuarios();
-      showNotification(
-        isEditing
-          ? "Usuario actualizado correctamente"
-          : "Usuario creado correctamente",
-        "success"
-      );
+      showNotification("Usuario actualizado correctamente", "success");
     } catch (err) {
       console.error(err);
-      showNotification("Error al guardar usuario", "error");
+      showNotification(err.message || "Error al guardar usuario", "error");
     }
   };
 
@@ -416,6 +495,7 @@ export default function App() {
               <>
                 <p className="text-gray-300 mt-2">📞 {u.telefono}</p>
                 <p className="text-gray-300">📍 {u.direccion}</p>
+                <p className="text-gray-300">🪪 {u.dni}</p>
               </>
             )}
 
@@ -464,6 +544,7 @@ export default function App() {
                 <>
                   <th className="px-6 py-3">Teléfono</th>
                   <th className="px-6 py-3">Dirección</th>
+                  <th className="px-6 py-3">DNI</th>
                 </>
               )}
 
@@ -499,6 +580,7 @@ export default function App() {
                   <>
                     <td className="px-6 py-4 text-gray-300">{u.telefono}</td>
                     <td className="px-6 py-4 text-gray-300">{u.direccion}</td>
+                    <td className="px-6 py-4 text-gray-300">{u.dni}</td>
                   </>
                 )}
 

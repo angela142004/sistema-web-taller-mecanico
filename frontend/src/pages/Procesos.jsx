@@ -24,7 +24,7 @@ const procesos = [
     titulo: "Diagnóstico inicial",
     subtitulo: "Inspección y escaneo",
     descripcion:
-      "Inspección visual, pruebas básicas y escaneo con equipos OBD para detectar códigos y fallos iniciales.",
+      "Inspección visual, pruebas básicas y demás componentes, identificando posibles fallas o desgastes iniciales. ",
     icon: <Search className="w-12 h-12 text-purple-300" />,
     imagen: "/images/procesos/diagnostico.jpg",
   },

@@ -47,14 +47,14 @@ const Footer = () => {
 
             <div className="space-y-3">
               <a
-                href="tel:+51942465422"
+                href="tel:+51952110563"
                 className="flex items-center space-x-3 group hover:translate-x-1 transition-transform duration-200"
               >
                 <div className="p-2 rounded-lg bg-slate-800/50 group-hover:bg-purple-600/20 transition-colors duration-200">
                   <Phone className="h-4 w-4 text-purple-400" />
                 </div>
                 <span className="text-slate-300 group-hover:text-white transition-colors">
-                  +51 942 465 422
+                  +51 952 110 563
                 </span>
               </a>
 
@@ -63,7 +63,7 @@ const Footer = () => {
                   <MapPin className="h-4 w-4 text-purple-400" />
                 </div>
                 <span className="text-slate-300 text-sm">
-                  Chincha Alta, Ica, Perú
+                  Tupac Amaru, Zona A, Chincha
                 </span>
               </div>
 
@@ -72,7 +72,7 @@ const Footer = () => {
                   <Clock className="h-4 w-4 text-purple-400" />
                 </div>
                 <span className="text-slate-300 text-sm">
-                  Lun - Sáb: 8:00 AM - 6:00 PM
+                  Lun - Sáb: 8:00 AM - 8:00 PM
                 </span>
               </div>
             </div>

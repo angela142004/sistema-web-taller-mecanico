@@ -132,13 +132,6 @@ const Servicio = () => {
                 <div className="p-5">
                   <h3 className="text-lg font-semibold mb-2">{s.titulo}</h3>
                   <p className="text-gray-300 text-sm mb-4">{s.descripcion}</p>
-                  <button
-                    type="button"
-                    className="inline-block px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded-md text-white text-sm transition"
-                    aria-label={`Ver más sobre ${s.titulo}`}
-                  >
-                    Solicitar
-                  </button>
                 </div>
               </div>
             ))}

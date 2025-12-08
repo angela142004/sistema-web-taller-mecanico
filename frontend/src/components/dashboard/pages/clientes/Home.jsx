@@ -391,7 +391,7 @@ export default function DashboardInicio() {
             Tus Reservas Recientes
           </h2>
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {reservasDetalle.map((r) => (
+            {reservasDetalle.slice(-10).map((r) => (
               <div
                 key={r.id}
                 className="rounded-2xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition"

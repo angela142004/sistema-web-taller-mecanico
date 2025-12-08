@@ -84,65 +84,119 @@ export const createReserva = async (req, res) => {
     if (!servicio)
       return res.status(404).json({ error: "Servicio no encontrado" });
 
-    // Normalizar fecha DD/MM/YYYY a YYYY-MM-DD
+    // Normalizar fecha DD/MM/YYYY a YYYY-MM-DD si aplica
     let fechaISO = fecha;
     if (fecha.includes("/")) {
       const [dia, mes, anio] = fecha.split("/");
       fechaISO = `${anio}-${mes}-${dia}`;
     }
 
-    // Convertir hora_inicio en minutos totales
-    const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
-    const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
-
-    // Calcular hora_fin
-    const horaFinHoras = Math.floor(minutosTotales / 60);
-    const horaFinMinutos = minutosTotales % 60;
-    const hora_fin = `${String(horaFinHoras).padStart(2, "0")}:${String(
-      horaFinMinutos
-    ).padStart(2, "0")}`;
-
-    // Construir fecha sin conversión a UTC
+    // Construir fecha sin conversión a UTC (inicio del día)
     const [anio, mes, dia] = fechaISO.split("-").map(Number);
-    const fechaDate = new Date(anio, mes - 1, dia, 0, 0, 0);
+    const fechaStart = new Date(anio, mes - 1, dia, 0, 0, 0);
+    const fechaNext = new Date(anio, mes - 1, dia + 1, 0, 0, 0);
 
-    // Contar cuántas reservas del mismo servicio ya existen en ese horario
-    const reservasSimultaneas = await prisma.reservas.count({
-      where: {
-        id_servicio: Number(id_servicio),
-        fecha: fechaDate,
-        hora_inicio: hora_inicio,
-      },
+    // Función simple determinista para obtener un entero 32-bit de una string
+    const hash32 = (str) => {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 33) ^ str.charCodeAt(i);
+      }
+      // Convertir a entero sin signo 32 bits
+      return h >>> 0;
+    };
+
+    // Key para locking basada en slot (servicio+fecha+hora)
+    const slotKey = `${id_servicio}|${fechaISO}|${hora_inicio}`;
+    const key1 = hash32(slotKey);
+    const key2 = hash32(slotKey + "|salt");
+
+    // Construir una clave 64-bit (bigint) combinando ambos hashes para usar
+    // la firma pg_advisory_xact_lock(bigint). Esto evita problemas de firma y overflow.
+    const bigKey = (BigInt(key1) << 32n) | BigInt(key2);
+
+    // Ejecutar transacción con advisory lock para evitar race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // Adquirir lock transaccional (bloquea concurrentes en el mismo slot)
+      // Usamos la variante de un solo bigint: pg_advisory_xact_lock(bigint)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${bigKey}::bigint)`;
+
+      // Obtener número de mecánicos activos (capacidad dinámica) dentro de la tx
+      const mecanicosCount = await tx.mecanicos.count();
+
+      if (mecanicosCount <= 0) {
+        throw {
+          status: 503,
+          message: "No hay mecánicos disponibles en este momento",
+        };
+      }
+
+      // Contar cuántas reservas del mismo servicio ya existen en ese horario (dentro de tx)
+      const reservasSimultaneas = await tx.reservas.count({
+        where: {
+          id_servicio: Number(id_servicio),
+          fecha: {
+            gte: fechaStart,
+            lt: fechaNext,
+          },
+          hora_inicio: hora_inicio,
+        },
+      });
+
+      if (reservasSimultaneas >= mecanicosCount) {
+        throw {
+          status: 409,
+          message: "No hay disponibilidad para este servicio a esa hora",
+          availableSlots: Math.max(0, mecanicosCount - reservasSimultaneas),
+          mecanicosCount,
+        };
+      }
+
+      // Convertir hora_inicio a hora_fin usando duración
+      const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
+      const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
+      const horaFinHoras = Math.floor(minutosTotales / 60);
+      const horaFinMinutos = minutosTotales % 60;
+      const hora_fin = `${String(horaFinHoras).padStart(2, "0")}:${String(
+        horaFinMinutos
+      ).padStart(2, "0")}`;
+
+      // Crear reserva dentro de la misma transacción
+      const nuevaReserva = await tx.reservas.create({
+        data: {
+          id_cliente: cliente.id_cliente,
+          id_vehiculo: Number(id_vehiculo),
+          id_servicio: Number(id_servicio),
+          fecha: fechaStart,
+          hora_inicio,
+          hora_fin,
+          estado: "PENDIENTE",
+        },
+      });
+
+      return { nuevaReserva, mecanicosCount, reservasSimultaneas };
     });
 
-    if (reservasSimultaneas >= 3)
-      return res
-        .status(409)
-        .json({ error: "No hay disponibilidad para este servicio a esa hora" });
-
-    // Crear reserva
-    const nuevaReserva = await prisma.reservas.create({
-      data: {
-        id_cliente: cliente.id_cliente,
-        id_vehiculo: Number(id_vehiculo),
-        id_servicio: Number(id_servicio),
-        fecha: fechaDate,
-        hora_inicio,
-        hora_fin,
-        estado: "PENDIENTE",
-      },
-      include: {
-        servicio: true,
-        vehiculo: true,
-        cliente: { include: { usuario: true } },
-      },
-    });
-
+    // Si la tx lanzó error customizado, prisma lo propagará; aquí retornamos OK
     res.status(201).json({
       message: "Reserva creada exitosamente",
-      reserva: nuevaReserva,
+      reserva: result.nuevaReserva,
+      meta: {
+        mecanicosCount: result.mecanicosCount,
+        reservasPrevias: result.reservasSimultaneas,
+      },
     });
   } catch (error) {
+    // manejar errores arrojados desde la transacción con status personalizado
+    if (error && typeof error === "object" && error.status) {
+      return res.status(error.status).json({
+        error: error.message,
+        ...("availableSlots" in error
+          ? { availableSlots: error.availableSlots }
+          : {}),
+      });
+    }
+
     console.error("Error al crear reserva:", error);
     res.status(500).json({ error: "Error al crear reserva" });
   }
