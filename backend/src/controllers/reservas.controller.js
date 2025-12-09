@@ -54,6 +54,9 @@ export const getReservaById = async (req, res) => {
 /**
  * Crear nueva reserva
  */
+/**
+ * Crear nueva reserva con control estricto de disponibilidad
+ */
 export const createReserva = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -91,108 +94,113 @@ export const createReserva = async (req, res) => {
       fechaISO = `${anio}-${mes}-${dia}`;
     }
 
-    // Construir fecha sin conversión a UTC (inicio del día)
     const [anio, mes, dia] = fechaISO.split("-").map(Number);
     const fechaStart = new Date(anio, mes - 1, dia, 0, 0, 0);
     const fechaNext = new Date(anio, mes - 1, dia + 1, 0, 0, 0);
 
-    // Función simple determinista para obtener un entero 32-bit de una string
+    // Hash 32 bits
     const hash32 = (str) => {
       let h = 5381;
       for (let i = 0; i < str.length; i++) {
         h = (h * 33) ^ str.charCodeAt(i);
       }
-      // Convertir a entero sin signo 32 bits
-      return h >>> 0;
+      return h | 0;
     };
 
-    // Key para locking basada en slot (servicio+fecha+hora)
-    const slotKey = `${id_servicio}|${fechaISO}|${hora_inicio}`;
+    // Slot único por reserva
+    const slotKey = `${fechaISO}|${hora_inicio}`;
+
     const key1 = hash32(slotKey);
     const key2 = hash32(slotKey + "|salt");
 
-    // Construir una clave 64-bit (bigint) combinando ambos hashes para usar
-    // la firma pg_advisory_xact_lock(bigint). Esto evita problemas de firma y overflow.
-    const bigKey = (BigInt(key1) << 32n) | BigInt(key2);
+    // ------------------------------
+    // 🔒 Transacción con advisory lock REAL
+    // ------------------------------
 
-    // Ejecutar transacción con advisory lock para evitar race conditions
-    const result = await prisma.$transaction(async (tx) => {
-      // Adquirir lock transaccional (bloquea concurrentes en el mismo slot)
-      // Usamos la variante de un solo bigint: pg_advisory_xact_lock(bigint)
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${bigKey}::bigint)`;
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 🔥 LOCK por slot, garantizado
+        await tx.$executeRaw`
+  SELECT pg_advisory_xact_lock(${key1}::int, ${key2}::int);
+`;
 
-      // Obtener número de mecánicos activos (capacidad dinámica) dentro de la tx
-      const mecanicosCount = await tx.mecanicos.count();
+        // ✅ 1. Contar mecánicos PRIMERO
+        const mecanicosCount = await tx.mecanicos.count();
+        if (mecanicosCount <= 0) {
+          throw {
+            status: 503,
+            message: "No hay mecánicos disponibles en este momento",
+          };
+        }
 
-      if (mecanicosCount <= 0) {
-        throw {
-          status: 503,
-          message: "No hay mecánicos disponibles en este momento",
-        };
-      }
-
-      // Contar cuántas reservas del mismo servicio ya existen en ese horario (dentro de tx)
-      const reservasSimultaneas = await tx.reservas.count({
-        where: {
-          id_servicio: Number(id_servicio),
-          fecha: {
-            gte: fechaStart,
-            lt: fechaNext,
+        // ✅ 2. Contar reservas EN ESTE SLOT (dentro del lock)
+        const reservasSimultaneas = await tx.reservas.count({
+          where: {
+            fecha: { gte: fechaStart, lt: fechaNext },
+            hora_inicio,
           },
-          hora_inicio: hora_inicio,
-        },
-      });
+        });
 
-      if (reservasSimultaneas >= mecanicosCount) {
-        throw {
-          status: 409,
-          message: "No hay disponibilidad para este servicio a esa hora",
-          availableSlots: Math.max(0, mecanicosCount - reservasSimultaneas),
-          mecanicosCount,
-        };
-      }
+        // ✅ 3. VALIDACIÓN CRÍTICA: Si ya hay reservas >= mecánicos → RECHAZAR
+        if (reservasSimultaneas >= mecanicosCount) {
+          throw {
+            status: 409,
+            message: `No hay disponibilidad para este servicio. Ya hay ${reservasSimultaneas} reserva(s) y solo ${mecanicosCount} mecánico(s) disponible(s).`,
+            availableSlots: 0,
+            mecanicosCount,
+            reservasActuales: reservasSimultaneas,
+          };
+        }
 
-      // Convertir hora_inicio a hora_fin usando duración
-      const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
-      const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
-      const horaFinHoras = Math.floor(minutosTotales / 60);
-      const horaFinMinutos = minutosTotales % 60;
-      const hora_fin = `${String(horaFinHoras).padStart(2, "0")}:${String(
-        horaFinMinutos
-      ).padStart(2, "0")}`;
+        // ✅ 4. Si llegamos aquí, HAY ESPACIO → Calcular hora_fin
+        const [hInicio, mInicio] = hora_inicio.split(":").map(Number);
+        const minutosTotales = hInicio * 60 + mInicio + servicio.duracion;
+        const horaFinHoras = Math.floor(minutosTotales / 60);
+        const horaFinMinutos = minutosTotales % 60;
 
-      // Crear reserva dentro de la misma transacción
-      const nuevaReserva = await tx.reservas.create({
-        data: {
-          id_cliente: cliente.id_cliente,
-          id_vehiculo: Number(id_vehiculo),
-          id_servicio: Number(id_servicio),
-          fecha: fechaStart,
-          hora_inicio,
-          hora_fin,
-          estado: "PENDIENTE",
-        },
-      });
+        const hora_fin =
+          `${String(horaFinHoras).padStart(2, "0")}:` +
+          `${String(horaFinMinutos).padStart(2, "0")}`;
 
-      return { nuevaReserva, mecanicosCount, reservasSimultaneas };
-    });
+        // ✅ 5. Crear reserva
+        const nuevaReserva = await tx.reservas.create({
+          data: {
+            id_cliente: cliente.id_cliente,
+            id_vehiculo: Number(id_vehiculo),
+            id_servicio: Number(id_servicio),
+            fecha: fechaStart,
+            hora_inicio,
+            hora_fin,
+            estado: "PENDIENTE",
+          },
+        });
 
-    // Si la tx lanzó error customizado, prisma lo propagará; aquí retornamos OK
+        return { nuevaReserva, mecanicosCount, reservasSimultaneas };
+      },
+      { timeout: 15000 }
+    );
+
     res.status(201).json({
       message: "Reserva creada exitosamente",
       reserva: result.nuevaReserva,
       meta: {
         mecanicosCount: result.mecanicosCount,
         reservasPrevias: result.reservasSimultaneas,
+        slotsDisponibles:
+          result.mecanicosCount - result.reservasSimultaneas - 1,
       },
     });
   } catch (error) {
-    // manejar errores arrojados desde la transacción con status personalizado
-    if (error && typeof error === "object" && error.status) {
+    // ✅ Manejo de errores personalizado
+    if (error?.status) {
       return res.status(error.status).json({
         error: error.message,
-        ...("availableSlots" in error
-          ? { availableSlots: error.availableSlots }
+        ...(error.availableSlots !== undefined
+          ? {
+              availableSlots: error.availableSlots,
+              mecanicosCount: error.mecanicosCount,
+              reservasActuales: error.reservasActuales,
+            }
           : {}),
       });
     }

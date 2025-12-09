@@ -6,9 +6,21 @@ import {
   actualizarCotizacion,
   actualizarEstadoCotizacion,
   eliminarCotizacion,
+  crearHistorialSemana,
+  obtenerHistorialSemanas,
+  eliminarHistorialSemana, // <-- nuevo
 } from "../controllers/cotizacion.controller.js";
 
 const router = Router();
+
+// 📅 Crear historial semanal
+router.post("/historial", crearHistorialSemana);
+
+// 📅 Obtener historial de semanas
+router.get("/historial", obtenerHistorialSemanas);
+
+// 📅 Eliminar historial
+router.delete("/historial-semanas/:id", eliminarHistorialSemana); // <-- nueva ruta
 
 // 📌 Crear una cotización
 router.post("/", crearCotizacion);

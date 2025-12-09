@@ -50,16 +50,16 @@ export default function CotizacionCliente() {
       });
 
       if (!res.ok) {
-        setError("No se pudieron cargar las cotizaciones (mostrando ejemplos)");
-        setCotizaciones(ejemplos);
+        setError("No se pudieron cargar las cotizaciones");
+        setCotizaciones([]);
         return;
       }
 
       const data = await res.json();
-      setCotizaciones(data.length ? [...data].reverse() : ejemplos);
+      setCotizaciones(data.length ? [...data].reverse() : []); // 👈 SIN EJEMPLOS
     } catch {
-      setError("No se pudieron cargar las cotizaciones (mostrando ejemplos)");
-      setCotizaciones(ejemplos);
+      setError("No se pudieron cargar las cotizaciones");
+      setCotizaciones([]); // 👈 SIN EJEMPLOS
     }
   };
 

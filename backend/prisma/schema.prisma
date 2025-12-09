@@ -224,3 +224,14 @@ model Facturas {
 
   @@map("Facturas")
 }
+model Historial_Costos {
+  id_historial       Int      @id @default(autoincrement())
+  semana             Int
+  anio               Int
+  datos              Json
+  total              Decimal  @db.Decimal(12, 2)
+  total_cotizaciones Int
+  creado_en          DateTime @default(now())
+
+  @@map("Historial_Costos")
+}

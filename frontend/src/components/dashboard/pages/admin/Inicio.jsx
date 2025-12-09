@@ -39,6 +39,17 @@ export default function AdminInicio() {
 
   const [loading, setLoading] = useState(true);
 
+  // --- ESTADOS PARA REPUESTOS Y ALERTAS (traídos desde backend) ---
+  const [topRepuestos, setTopRepuestos] = useState([]);
+  const [alertasStock, setAlertasStock] = useState([]);
+  const REPUESTO_STOCK_MINIMO = 30;
+  // --- FIN REPUESTOS ---
+
+  // --- ESTADOS PARA COSTOS / COTIZACIONES ---
+  const [costosSemanal, setCostosSemanal] = useState([]);
+  const [costosMensual, setCostosMensual] = useState([]);
+  // --- FIN COSTOS ---
+
   // ========== FUNCIÓN PARA CARGAR TODO ==========
   const fetchDashboardAdmin = async () => {
     try {
@@ -161,180 +172,151 @@ export default function AdminInicio() {
     return Math.ceil((dias + inicioAno.getDay() + 1) / 7);
   };
 
-  // Cargar historial desde storage
+  // Helper: obtener el lunes de la semana 'week' en el año 'year'
+  const getMondayOfWeek = (week, year) => {
+    // Intento robusto compatible para la UI (no exige ISO-week exacto)
+    const firstJan = new Date(year, 0, 1);
+    const day = firstJan.getDay(); // 0..6 (Dom..Sab)
+    // Calcular primer lunes del año
+    const firstMondayOffset = day <= 1 ? 1 - day : 8 - day;
+    const firstMonday = new Date(firstJan);
+    firstMonday.setDate(firstJan.getDate() + firstMondayOffset);
+    // Avanzar (week-1) semanas desde el primer lunes
+    const target = new Date(firstMonday);
+    target.setDate(firstMonday.getDate() + (week - 1) * 7);
+    target.setHours(0, 0, 0, 0);
+    return target;
+  };
+
+  // Cargar historial desde backend y mapear al formato que usa la UI
   const cargarHistorial = async () => {
     try {
-      const resultado = await window.storage.list("historial-costos:");
-      if (resultado && resultado.keys) {
-        const historialesPromesas = resultado.keys.map(async (key) => {
-          const data = await window.storage.get(key);
-          return data ? JSON.parse(data.value) : null;
-        });
+      const res = await fetch(
+        "http://localhost:4001/mecanica/cotizaciones/historial",
+        {
+          headers: { Authorization: token ? `Bearer ${token}` : "" },
+        }
+      );
 
-        const historiales = await Promise.all(historialesPromesas);
-        const historalesValidos = historiales.filter((h) => h !== null);
-
-        // Ordenar por fecha más reciente
-        historalesValidos.sort(
-          (a, b) => new Date(b.inicio) - new Date(a.inicio)
+      if (!res.ok) {
+        // intentar leer body de error para debugging
+        const errBody = await res.text().catch(() => null);
+        console.error(
+          "[cargarHistorial] respuesta no OK:",
+          res.status,
+          errBody
         );
-        setHistorialSemanas(historalesValidos);
+        setHistorialSemanas([]);
+        return;
       }
-    } catch (error) {
-      console.log("Historial vacío o error al cargar:", error);
+
+      const registros = await res.json();
+      if (!Array.isArray(registros)) {
+        setHistorialSemanas([]);
+        return;
+      }
+
+      // Mapear cada registro DB al formato que espera la UI
+      const mapped = registros.map((r) => {
+        const semanaNum = Number(r.semana) || 0;
+        const anioNum = Number(r.anio) || new Date().getFullYear();
+
+        // calcular fechas inicio/fin a partir de semana+anio
+        const inicioDate = getMondayOfWeek(semanaNum || 1, anioNum);
+        const finDate = new Date(inicioDate);
+        finDate.setDate(inicioDate.getDate() + 6);
+
+        return {
+          id_historial: r.id_historial,
+          numero: semanaNum,
+          anio: anioNum,
+          inicio: inicioDate.toISOString(),
+          fin: finDate.toISOString(),
+          datos: r.datos || [], // ya es JSON en DB
+          totalCosto: Number(r.total ?? 0),
+          totalCotizaciones: Number(r.total_cotizaciones ?? 0),
+          creado_en: r.creado_en,
+        };
+      });
+
+      setHistorialSemanas(mapped);
+    } catch (err) {
+      console.error("Error cargando historial desde backend:", err);
       setHistorialSemanas([]);
     }
   };
 
-  // estados para costos
-  const [costosSemanal, setCostosSemanal] = useState([]);
-  const [costosMensual, setCostosMensual] = useState([]);
-
-  // helper: parsear fechaRaw como FECHA LOCAL (sin efecto timezone)
-  function parseFechaComoLocal(fechaRaw) {
-    if (!fechaRaw) return null;
-
-    // si ya es Date -> normalizar a local (sin hora)
-    if (fechaRaw instanceof Date) {
-      return new Date(
-        fechaRaw.getFullYear(),
-        fechaRaw.getMonth(),
-        fechaRaw.getDate()
-      );
-    }
-
-    const s = String(fechaRaw);
-
-    // extraer YYYY-MM-DD si existe al inicio (sirve para "YYYY-MM-DD" y "YYYY-MM-DDTHH:MM:SS...")
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) {
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      return new Date(y, mo, d); // aquí se crea en midnight local, sin shift UTC
-    }
-
-    // fallback: intentar construir Date y convertir a local date
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-
-    // si todo falla
-    return null;
-  }
-
-  // función corregida para obtener costos (usa parseFechaComoLocal)
-  const fetchCostos = async () => {
-    try {
-      const res = await fetch("http://localhost:4001/mecanica/cotizaciones", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const raw = await res.json();
-      const cotizaciones = Array.isArray(raw) ? raw : raw.cotizaciones || [];
-
-      // Días para orden semanal
-      const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-      const mapaDias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-      // inicializar acumuladores
-      const semanalCosto = Object.fromEntries(
-        diasSemana.map((d) => [d, { costo: 0, cotizaciones: 0 }])
-      );
-      const mensualCosto = {
-        "Semana 1": { costo: 0, cotizaciones: 0 },
-        "Semana 2": { costo: 0, cotizaciones: 0 },
-        "Semana 3": { costo: 0, cotizaciones: 0 },
-        "Semana 4": { costo: 0, cotizaciones: 0 },
-      };
-
-      cotizaciones.forEach((cot) => {
-        // usar el campo fecha de tu schema
-        const fechaRaw = cot.fecha || cot.createdAt || cot.fecha_creacion;
-        const fechaLocal = parseFechaComoLocal(fechaRaw);
-        if (!fechaLocal) {
-          console.warn("Fecha inválida (ignorada):", fechaRaw, cot);
-          return;
-        }
-
-        // día de la semana (local)
-        const diaTexto = mapaDias[fechaLocal.getDay()]; // "Lun", etc
-
-        // semana del mes (1..5), capear a 4 para mantener 4 semanas
-        const diaDelMes = fechaLocal.getDate(); // 1..31
-        let numeroSemana = Math.ceil(diaDelMes / 7); // 1..5
-        numeroSemana = Math.min(Math.max(1, numeroSemana), 4); // forzar 1..4
-        const semanaTexto = `Semana ${numeroSemana}`;
-
-        // total (prisma decimal puede venir como string) -> number seguro
-        const total =
-          typeof cot.total === "object" && cot.total?.toNumber
-            ? cot.total.toNumber()
-            : Number(cot.total || 0);
-
-        // acumular
-        semanalCosto[diaTexto].costo += total;
-        semanalCosto[diaTexto].cotizaciones += 1;
-
-        if (mensualCosto[semanaTexto]) {
-          mensualCosto[semanaTexto].costo += total;
-          mensualCosto[semanaTexto].cotizaciones += 1;
-        }
-      });
-
-      // convertir a arrays en el orden esperado
-      const semanalArray = diasSemana.map((dia) => ({
-        dia,
-        costo: Math.round(semanalCosto[dia].costo * 100) / 100, // redondeo 2 decimales
-        cotizaciones: semanalCosto[dia].cotizaciones,
-      }));
-
-      const mensualArray = Object.keys(mensualCosto).map((semana) => ({
-        semana,
-        costo: Math.round(mensualCosto[semana].costo * 100) / 100,
-        cotizaciones: mensualCosto[semana].cotizaciones,
-      }));
-
-      setCostosSemanal(semanalArray);
-      setCostosMensual(mensualArray);
-    } catch (error) {
-      console.error("Error cargando costos:", error);
-    }
-  };
-
-  // Llamar al cargar el componente (y cuando cambie token, si aplica)
-  useEffect(() => {
-    fetchCostos();
-  }, []);
-  // Función para guardar semana actual en historial
+  // Guardar semana actual en backend (POST)
   const guardarSemanaActual = async () => {
     if (!semanaActual) return;
 
-    const registroSemana = {
-      inicio: semanaActual.inicio.toISOString(),
-      fin: semanaActual.fin.toISOString(),
-      numero: semanaActual.numero,
+    const payload = {
+      semana: semanaActual.numero,
+      anio: semanaActual.inicio.getFullYear(),
       datos: costosSemanal,
-      totalCosto: costosSemanal.reduce((acc, d) => acc + d.costo, 0),
-      totalCotizaciones: costosSemanal.reduce(
-        (acc, d) => acc + d.cotizaciones,
-        0
+      total: Number(costosSemanal.reduce((acc, d) => acc + d.costo, 0)),
+      totalCotizaciones: Number(
+        costosSemanal.reduce((acc, d) => acc + d.cotizaciones, 0)
       ),
-      guardadoEn: new Date().toISOString(),
     };
 
     try {
-      const key = `historial-costos:${
-        semanaActual.numero
-      }-${semanaActual.inicio.getFullYear()}`;
-      await window.storage.set(key, JSON.stringify(registroSemana));
+      const res = await fetch(
+        "http://localhost:4001/mecanica/cotizaciones/historial",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
-      alert("✅ Semana guardada correctamente en el historial");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Error al guardar semana en servidor");
+      }
+
+      alert("✅ Semana guardada en servidor correctamente");
       await cargarHistorial();
     } catch (error) {
-      console.error("Error al guardar:", error);
-      alert("❌ Error al guardar la semana");
+      console.error("Error al guardar semana en backend:", error);
+      alert("❌ Error al guardar la semana en servidor");
+    }
+  };
+  // 🆕 FUNCIÓN PARA ELIMINAR SEMANA DEL HISTORIAL
+  const eliminarSemanaHistorial = async (idHistorial) => {
+    if (!confirm("¿Estás seguro de eliminar esta semana del historial?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `http://localhost:4001/mecanica/cotizaciones/historial-semanas/${idHistorial}`,
+        {
+          method: "DELETE",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Error al eliminar semana");
+      }
+
+      alert("✅ Semana eliminada correctamente");
+      await cargarHistorial();
+
+      // Si estábamos viendo los detalles de la semana eliminada, cerrar el modal
+      if (semanaSeleccionada?.id_historial === idHistorial) {
+        setSemanaSeleccionada(null);
+      }
+    } catch (error) {
+      console.error("Error al eliminar semana:", error);
+      alert("❌ Error al eliminar la semana");
     }
   };
 
@@ -487,7 +469,9 @@ export default function AdminInicio() {
 
   const datosActuales =
     selectedPeriod === "semanal" ? costosSemanal : costosMensual;
-  const maxCosto = Math.max(...datosActuales.map((d) => d.costo));
+  const maxCosto = datosActuales.length
+    ? Math.max(...datosActuales.map((d) => d.costo))
+    : 1;
 
   // Datos de ejemplo para otras secciones
   const tiempoRelativo = (fechaISO) => {
@@ -524,11 +508,14 @@ export default function AdminInicio() {
         cliente: r.cliente?.usuario?.nombre || "Cliente desconocido",
         servicio: r.servicio?.nombre || "Servicio",
         estado: r.estado?.toLowerCase() || "pendiente",
+        fecha: r.fecha,
         tiempo: tiempoRelativo(r.fecha),
       }));
 
       // ORDENAR POR FECHA RECIENTE
-      actividades.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      actividades.sort(
+        (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0)
+      );
 
       setActividadReciente(actividades);
     } catch (error) {
@@ -548,7 +535,7 @@ export default function AdminInicio() {
   // Estado para rendimiento semanal dinámico
   const [rendimientoSemanal, setRendimientoSemanal] = useState([]);
 
-  // Helper: parsear fecha y devolver Date en horario LOCAL (sin efectos timezone)
+  // Helper: parsear fechaRaw como FECHA LOCAL (sin efecto timezone)
   function parseFechaComoLocal(fechaRaw) {
     if (!fechaRaw) return null;
 
@@ -578,6 +565,83 @@ export default function AdminInicio() {
 
     return null;
   }
+
+  // ------------------
+  // fetchCostos: construye costosSemanal y costosMensual
+  // ------------------
+  const fetchCostos = async () => {
+    try {
+      const res = await fetch("http://localhost:4001/mecanica/cotizaciones", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setCostosSemanal([]);
+        setCostosMensual([]);
+        return;
+      }
+      const raw = await res.json();
+      const cotizaciones = Array.isArray(raw) ? raw : raw.cotizaciones || [];
+
+      const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+      const mapaDias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+      const semanalAcum = Object.fromEntries(
+        diasSemana.map((d) => [d, { costo: 0, cotizaciones: 0 }])
+      );
+      const mensualAcum = {
+        "Semana 1": { costo: 0, cotizaciones: 0 },
+        "Semana 2": { costo: 0, cotizaciones: 0 },
+        "Semana 3": { costo: 0, cotizaciones: 0 },
+        "Semana 4": { costo: 0, cotizaciones: 0 },
+      };
+
+      cotizaciones.forEach((cot) => {
+        const fechaRaw = cot.fecha || cot.createdAt || cot.fecha_creacion;
+        const fechaLocal = parseFechaComoLocal(fechaRaw);
+        if (!fechaLocal) return;
+
+        const diaTexto = mapaDias[fechaLocal.getDay()];
+
+        const diaDelMes = fechaLocal.getDate();
+        let numeroSemana = Math.ceil(diaDelMes / 7);
+        numeroSemana = Math.min(Math.max(1, numeroSemana), 4);
+        const semanaTexto = `Semana ${numeroSemana}`;
+
+        const total =
+          cot.total && typeof cot.total === "object" && cot.total.toNumber
+            ? cot.total.toNumber()
+            : Number(cot.total ?? 0);
+
+        semanalAcum[diaTexto].costo += total;
+        semanalAcum[diaTexto].cotizaciones += 1;
+
+        if (mensualAcum[semanaTexto]) {
+          mensualAcum[semanaTexto].costo += total;
+          mensualAcum[semanaTexto].cotizaciones += 1;
+        }
+      });
+
+      const semanalArray = diasSemana.map((dia) => ({
+        dia,
+        costo: Math.round(semanalAcum[dia].costo * 100) / 100,
+        cotizaciones: semanalAcum[dia].cotizaciones,
+      }));
+
+      const mensualArray = Object.keys(mensualAcum).map((sem) => ({
+        semana: sem,
+        costo: Math.round(mensualAcum[sem].costo * 100) / 100,
+        cotizaciones: mensualAcum[sem].cotizaciones,
+      }));
+
+      setCostosSemanal(semanalArray);
+      setCostosMensual(mensualArray);
+    } catch (err) {
+      console.error("Error cargando costos:", err);
+      setCostosSemanal([]);
+      setCostosMensual([]);
+    }
+  };
+  // ------------------
 
   // Función para obtener rendimiento desde el backend (robusta contra formatos)
   const fetchRendimientoSemanal = async () => {
@@ -630,16 +694,60 @@ export default function AdminInicio() {
 
   // Llamar al cargar el componente
   useEffect(() => {
+    // cargar tanto rendimiento como costos
     fetchRendimientoSemanal();
+    fetchCostos();
+    cargarHistorial();
+    fetchRepuestos();
   }, []);
 
-  const topRepuestos = [
-    { nombre: "Filtro de Aceite", uso: 45, cambio: "+12%", tipo: "aumento" },
-    { nombre: "Pastillas de Freno", uso: 38, cambio: "+8%", tipo: "aumento" },
-    { nombre: "Bujías", uso: 32, cambio: "-5%", tipo: "disminucion" },
-    { nombre: "Amortiguadores", uso: 28, cambio: "+15%", tipo: "aumento" },
-    { nombre: "Batería", uso: 22, cambio: "+3%", tipo: "aumento" },
-  ];
+  // --- REPUESTOS: cargar top y alertas desde backend ---
+  const fetchRepuestos = async () => {
+    try {
+      const res = await fetch("http://localhost:4001/mecanica/repuestos", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Error cargando repuestos");
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : [];
+
+      // top: los de menor stock (urgentes)
+      const top = arr
+        .slice()
+        .sort((a, b) => a.stock - b.stock)
+        .slice(0, 5)
+        .map((r, i) => ({
+          nombre: r.descripcion,
+          uso: Math.max(0, 100 - r.stock), // heurística
+          cambio: "+0%",
+          tipo: r.stock <= REPUESTO_STOCK_MINIMO ? "aumento" : "disminucion",
+          stock: r.stock,
+          marca: r.marca?.nombre || "",
+        }));
+
+      setTopRepuestos(top);
+
+      const alertas = arr
+        .filter((r) => r.stock <= REPUESTO_STOCK_MINIMO)
+        .map((r) => ({
+          producto: r.descripcion,
+          stock: r.stock,
+          minimo: REPUESTO_STOCK_MINIMO,
+          marca: r.marca?.nombre || "",
+        }));
+      setAlertasStock(alertas);
+    } catch (err) {
+      console.error("Error fetchRepuestos:", err);
+      setTopRepuestos([]);
+      setAlertasStock([]);
+    }
+  };
+
+  // Cargar historial y repuestos al montar
+  useEffect(() => {
+    cargarHistorial();
+    fetchRepuestos();
+  }, []);
 
   return (
     <div className="text-white space-y-6 animate-fadeIn p-4 sm:p-6 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -948,7 +1056,9 @@ export default function AdminInicio() {
                       style={{ width: `${porcentaje}%` }}
                     >
                       <span className="text-xs font-bold text-white/90">
-                        {Math.round(porcentaje)}%
+                        {isFinite(porcentaje)
+                          ? Math.round(porcentaje) + "%"
+                          : "0%"}
                       </span>
                     </div>
                   </div>
@@ -1036,6 +1146,15 @@ export default function AdminInicio() {
                       >
                         <ChevronRight size={16} />
                         Ver Detalles
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          eliminarSemanaHistorial(semana.id_historial);
+                        }}
+                        className="bg-red-600/20 hover:bg-red-600/30 text-red-300 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                      >
+                        <X size={16} />
                       </button>
                     </div>
                   </div>
@@ -1211,44 +1330,22 @@ export default function AdminInicio() {
           </h2>
 
           <div className="space-y-4">
-            <AlertCard
-              nivel="bajo"
-              producto="Amortiguador Trasero Izquierdo"
-              stock={10}
-              minimo={15}
-              marca="Toyota"
-            />
-            <AlertCard
-              nivel="critico"
-              producto="Pastillas de Freno Delanteras"
-              stock={20}
-              minimo={30}
-              marca="Ford"
-            />
-            <AlertCard
-              nivel="bajo"
-              producto="Bujía de Encendido Iridium"
-              stock={30}
-              minimo={40}
-              marca="Honda"
-            />
-          </div>
-
-          <div className="mt-6 p-4 bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-red-500/20 rounded-lg">
-                <Package className="text-red-400" size={20} />
-              </div>
-              <div>
-                <p className="font-semibold text-white mb-1">
-                  Reabastecimiento Recomendado
-                </p>
-                <p className="text-sm text-white/70">
-                  3 productos requieren pedido urgente para mantener el stock
-                  óptimo
-                </p>
-              </div>
-            </div>
+            {alertasStock.length === 0 ? (
+              <div className="text-white/60">No hay alertas de stock</div>
+            ) : (
+              alertasStock.map((a, i) => (
+                <AlertCard
+                  key={i}
+                  nivel={
+                    a.stock <= Math.floor(a.minimo * 0.5) ? "critico" : "bajo"
+                  }
+                  producto={a.producto}
+                  stock={a.stock}
+                  minimo={a.minimo}
+                  marca={a.marca}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -1288,7 +1385,7 @@ function AlertCard({ nivel, producto, stock, minimo, marca }) {
       bg: "from-red-500/20 to-red-600/20",
       border: "border-red-500/40",
       icon: "bg-red-500/30 text-red-400",
-      text: "CRÍTICO",
+      text: "CRITICO",
     },
     bajo: {
       bg: "from-yellow-500/20 to-orange-600/20",

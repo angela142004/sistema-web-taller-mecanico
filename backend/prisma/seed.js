@@ -11,14 +11,18 @@ async function main() {
 
   const admin = await prisma.usuarios.upsert({
     where: { correo: "admin@mail.com" },
-    update: {},
+    update: {
+      confirmado: true, // ✅ por si ya existía
+    },
     create: {
       nombre: "Administrador",
       correo: "admin@mail.com",
       contraseña: hashedPassword,
       rol: "admin",
+      confirmado: true, // ✅ acceso inmediato
     },
   });
+
   console.log("✅ Usuario admin creado o existente:", admin.correo);
 
   // ===========================
@@ -153,14 +157,18 @@ async function main() {
 
   const clienteUser = await prisma.usuarios.upsert({
     where: { correo: "cliente@mail.com" },
-    update: {},
+    update: {
+      confirmado: true,
+    },
     create: {
       nombre: "Cliente Prueba",
       correo: "cliente@mail.com",
       contraseña: hashedClientePassword,
       rol: "cliente",
+      confirmado: true,
     },
   });
+
   console.log("✅ Usuario cliente creado o existente:", clienteUser.correo);
 
   // --- NUEVO: Crear entrada en Clientes si no existe ---

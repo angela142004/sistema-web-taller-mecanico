@@ -94,8 +94,14 @@ export const obtenerCotizacionPorId = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validar ID (evitar pasar NaN a Prisma)
+    const idNum = Number(id);
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ message: "ID de cotización inválido" });
+    }
+
     const cotizacion = await prisma.cotizaciones.findUnique({
-      where: { id_cotizacion: Number(id) },
+      where: { id_cotizacion: idNum },
       include: {
         reserva: true,
       },
@@ -175,5 +181,90 @@ export const eliminarCotizacion = async (req, res) => {
   } catch (error) {
     console.error("Error al eliminar cotización:", error);
     res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+// ==========================
+// 📌 Guardar historial semanal (nuevo endpoint)
+// POST /mecanica/cotizaciones/historial
+// body: { semana: number, anio: number, datos: Array, total: number, totalCotizaciones: number }
+// ==========================
+export const crearHistorialSemana = async (req, res) => {
+  try {
+    const { semana, anio, datos, total, totalCotizaciones } = req.body;
+
+    if (
+      typeof semana !== "number" ||
+      typeof anio !== "number" ||
+      !Array.isArray(datos)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Datos inválidos para historial semanal" });
+    }
+
+    const registro = await prisma.historial_Costos.create({
+      data: {
+        semana,
+        anio,
+        datos,
+        total: total ?? 0,
+        total_cotizaciones: totalCotizaciones ?? 0,
+      },
+    });
+
+    res.status(201).json({ message: "Historial semanal guardado", registro });
+  } catch (error) {
+    console.error("Error al crear historial semanal:", error);
+    res
+      .status(500)
+      .json({ message: "Error interno al guardar historial semanal" });
+  }
+};
+
+// ==========================
+// 📌 Obtener historial semanal (nuevo endpoint)
+// GET /mecanica/cotizaciones/historial
+// ==========================
+export const obtenerHistorialSemanas = async (req, res) => {
+  try {
+    const registros = await prisma.historial_Costos.findMany({
+      orderBy: { creado_en: "desc" },
+    });
+    res.json(Array.isArray(registros) ? registros : []);
+  } catch (error) {
+    console.error("Error al obtener historial semanal:", error);
+    res.status(500).json({ message: "Error interno al obtener historial" });
+  }
+};
+
+// ==========================
+// 📌 Eliminar historial semanal por id
+// DELETE /mecanica/cotizaciones/historial/:id
+// ==========================
+export const eliminarHistorialSemana = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idNum = Number(id);
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ message: "ID de historial inválido" });
+    }
+
+    const existente = await prisma.historial_Costos.findUnique({
+      where: { id_historial: idNum },
+    });
+
+    if (!existente) {
+      return res.status(404).json({ message: "Historial no encontrado" });
+    }
+
+    await prisma.historial_Costos.delete({
+      where: { id_historial: idNum },
+    });
+
+    res.json({ message: "Historial eliminado correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar historial semanal:", error);
+    res.status(500).json({ message: "Error interno al eliminar historial" });
   }
 };

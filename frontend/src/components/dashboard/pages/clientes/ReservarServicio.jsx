@@ -187,12 +187,6 @@ const TIMES = [
 const pill =
   "h-12 w-full rounded-full bg-[#3b138d] text-white placeholder:text-white/70 px-5 outline-none border border-white/10 focus:ring-2 focus:ring-white/20";
 
-/* Combo buscable sin dependencias
-    - showUseOption: si true, muestra 'Usar "texto"'
-    - showChevron:   si true, muestra el botón con el chevron
-    
-    */
-// Evitar que la fecha cambie por la zona horaria
 function formatDateLocal(isoDate) {
   const [y, m, d] = isoDate.split("-");
   return `${d}/${m}/${y}`;
@@ -221,7 +215,6 @@ function Combo({
       : options.filter((o) => o.toLowerCase().includes(q));
   }, [options, input]);
 
-  // cerrar al click fuera
   useEffect(() => {
     const onClick = (e) => {
       if (!ref.current?.contains(e.target)) setOpen(false);
@@ -230,7 +223,6 @@ function Combo({
     return () => window.removeEventListener("mousedown", onClick);
   }, []);
 
-  // teclado
   const onKeyDown = (e) => {
     if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
       setOpen(true);
@@ -280,7 +272,6 @@ function Combo({
           </button>
         )}
 
-        {/* Panel de opciones */}
         {open && (filtered.length > 0 || showUseOption) && (
           <div className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-xl border border-white/10 bg-[#24124a] shadow-lg">
             {filtered.length > 0 ? (
@@ -309,7 +300,7 @@ function Combo({
                 }}
                 className="w-full text-left px-4 py-2 text-sm"
               >
-                Usar “{input}”
+                Usar "{input}"
               </button>
             ) : null}
           </div>
@@ -319,35 +310,30 @@ function Combo({
   );
 }
 
-/* --- Página (modificada y corregida) --- */
 export default function ReservarServicio() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
   const token = localStorage.getItem("token") || "";
 
   const [marca, setMarca] = useState("");
   const [modelo, setModelo] = useState("");
-  const [servicio, setServicio] = useState(""); // will hold service id or name depending on API
+  const [servicio, setServicio] = useState("");
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
-  const [servicios, setServicios] = useState([]); // loaded from backend
-  const [vehiculos, setVehiculos] = useState([]); // user's vehicles from backend
-
-  /* Marcas (A–Z) */
-  const [marcasBackend, setMarcasBackend] = useState([]); // [{ id_marca, nombre }]
-  const [modelosBackend, setModelosBackend] = useState({}); // { [id_marca]: [ { id_modelo, nombre } ] }
+  const [servicios, setServicios] = useState([]);
+  const [vehiculos, setVehiculos] = useState([]);
+  const [marcasBackend, setMarcasBackend] = useState([]);
+  const [modelosBackend, setModelosBackend] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [vehiculoId, setVehiculoId] = useState("");
 
-  // Añadir estado para vehículo seleccionado
-  const [vehiculoId, setVehiculoId] = useState(""); // id del vehículo elegido
-
-  // --- Disponibilidad: máximo reservas = número de mecánicos registrados ---
   const [availabilityCount, setAvailabilityCount] = useState(0);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [mecanicosCount, setMecanicosCount] = useState(0);
+
   const isSlotFull =
     mecanicosCount > 0 ? availabilityCount >= mecanicosCount : true;
   const canCheckAvailability = Boolean(
@@ -355,7 +341,6 @@ export default function ReservarServicio() {
   );
   const availableSlots = Math.max(0, mecanicosCount - availabilityCount);
 
-  // Cargar cantidad de mecánicos
   const fetchMecanicosCount = async () => {
     try {
       const res = await fetch(`${API}/mecanica/mecanicos`, {
@@ -372,7 +357,6 @@ export default function ReservarServicio() {
     }
   };
 
-  // verificar disponibilidad consultando reservas del backend y contando coincidencias
   useEffect(() => {
     let mounted = true;
     const check = async () => {
@@ -395,8 +379,6 @@ export default function ReservarServicio() {
         }
 
         const all = await res.json();
-
-        // resolver id_servicio si servicio guarda nombre o id
         const sObj = servicios.find(
           (x) =>
             String(x.id_servicio ?? x.id ?? x.idServicio) ===
@@ -405,22 +387,19 @@ export default function ReservarServicio() {
         const idServicio = sObj?.id_servicio ?? sObj?.id ?? sObj?.idServicio;
 
         if (!idServicio) {
-          // no podemos chequear si no tenemos id real
           if (!mounted) return;
           setAvailabilityCount(0);
           setCheckingAvailability(false);
           return;
         }
 
-        // contar coincidencias en backend (fecha comparada como YYYY-MM-DD)
         const cnt = all.filter((r) => {
           const rDate = r.fecha
             ? new Date(r.fecha).toISOString().split("T")[0]
             : "";
           return (
             String(rDate) === String(fecha) &&
-            String(r.hora_inicio) === String(hora) &&
-            Number(r.id_servicio) === Number(idServicio)
+            String(r.hora_inicio) === String(hora)
           );
         }).length;
 
@@ -434,7 +413,6 @@ export default function ReservarServicio() {
       }
     };
 
-    // aseguramos tener el conteo de mecanicos antes de check
     if (mecanicosCount === 0) {
       fetchMecanicosCount().then(check);
     } else {
@@ -445,17 +423,13 @@ export default function ReservarServicio() {
       mounted = false;
     };
   }, [fecha, hora, servicio, servicios, API, token, mecanicosCount]);
-  // --- fin disponibilidad ---
 
-  // Cargar servicios y vehículos al montar
   useEffect(() => {
     fetchServicios();
     fetchVehiculos();
     loadMarcasFromBackend();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // función para cargar servicios desde backend
   const fetchServicios = async () => {
     setLoading(true);
     try {
@@ -463,22 +437,18 @@ export default function ReservarServicio() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        console.warn("[fetchServicios] No ok status:", res.status);
         setServicios([]);
         return;
       }
       const data = await res.json();
-      console.log("[fetchServicios] Datos recibidos:", data);
       setServicios(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("[fetchServicios] Error:", e?.message || e);
       setServicios([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // función para cargar vehículos del cliente
   const fetchVehiculos = async () => {
     setLoading(true);
     setError("");
@@ -487,14 +457,11 @@ export default function ReservarServicio() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        console.warn("[fetchVehiculos] No ok status:", res.status);
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
-      console.log("[fetchVehiculos] Datos recibidos:", data);
       setVehiculos(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("[fetchVehiculos] Error:", e?.message || e);
       setError(`Error cargando vehículos: ${e?.message || e}`);
       setVehiculos([]);
     } finally {
@@ -502,27 +469,22 @@ export default function ReservarServicio() {
     }
   };
 
-  // extraer loadMarcas en función reutilizable (usa API)
   const loadMarcasFromBackend = async () => {
     try {
       const res = await fetch(`${API}/mecanica/marcas`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        console.warn("[loadMarcas] No ok status:", res.status);
         setMarcasBackend([]);
         return;
       }
       const data = await res.json();
-      console.log("[loadMarcas] Datos recibidos:", data);
       setMarcasBackend(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("[loadMarcas] Error:", e?.message || e);
       setMarcasBackend([]);
     }
   };
 
-  // cargar modelos del backend cuando cambia la marca (si el endpoint existe)
   useEffect(() => {
     const loadModelos = async () => {
       const marcaObj = marcasBackend.find((m) => m.nombre === marca);
@@ -539,14 +501,12 @@ export default function ReservarServicio() {
           [marcaObj.id_marca]: data || [],
         }));
       } catch (e) {
-        // fallback: no rompe la UI
         console.warn("[loadModelos] fallback:", e?.message || e);
       }
     };
     loadModelos();
   }, [marca, marcasBackend, token]);
 
-  // modelOptions: primero backend, luego fallback local MODELS_BY_BRAND
   const modelOptions = useMemo(() => {
     const marcaObj = marcasBackend.find((m) => m.nombre === marca);
     if (marcaObj && modelosBackend[marcaObj.id_marca]?.length) {
@@ -555,7 +515,6 @@ export default function ReservarServicio() {
     return marca && MODELS_BY_BRAND[marca] ? MODELS_BY_BRAND[marca] : [];
   }, [marca, marcasBackend, modelosBackend]);
 
-  // obtener duración del servicio seleccionado
   const duracionSeleccionada = useMemo(() => {
     if (!servicio) return 0;
     const s = servicios.find(
@@ -563,10 +522,9 @@ export default function ReservarServicio() {
         String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
         x.nombre === servicio
     );
-    return s ? Number(xToNumberSafe(s.duracion)) : 0;
+    return s ? Number(s.duracion ?? 0) : 0;
   }, [servicio, servicios]);
 
-  // nombre del servicio (valor mostrado en el Combo)
   const servicioNombreValor = useMemo(() => {
     if (!servicio) return "";
     const sObj = servicios.find(
@@ -579,159 +537,83 @@ export default function ReservarServicio() {
       : String(servicio);
   }, [servicio, servicios]);
 
-  // opciones para el Combo (nombres)
   const servicioOptions = useMemo(() => {
-    // Si tenemos servicios desde el backend, mostramos "Nombre — X min"
     if (servicios.length > 0) {
       return servicios.map((s) => `${s.nombre} — ${s.duracion ?? 0} min`);
     }
-    // fallback a la lista local (sin duración)
     return SERVICIOS;
   }, [servicios]);
 
-  // helper: ensure numeric fallback
-  function xToNumberSafe(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  // sustituir la validación original por exigir vehiculoId
-  const canConfirm = Boolean(
-    vehiculoId && servicio && fecha && hora && !isSlotFull
-  );
-
-  // calcular fechas ISO
-  const buildDateTimes = () => {
-    const startStr = `${fecha} ${hora}:00`;
-
-    // calcular hora fin
-    const [h, m] = hora.split(":").map(Number);
-    const startDate = new Date(fecha);
-    startDate.setHours(h, m, 0, 0);
-
-    const endDate = new Date(
-      startDate.getTime() + duracionSeleccionada * 60000
-    );
-
-    const endStr = `${endDate.getFullYear()}-${String(
-      endDate.getMonth() + 1
-    ).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")} ${String(
-      endDate.getHours()
-    ).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}:00`;
-
-    return { startStr, endStr };
-  };
+  const canConfirm = Boolean(vehiculoId && servicio && fecha && hora);
 
   const handleConfirm = async () => {
     setError("");
     setSuccess("");
+
     if (!vehiculoId || !servicio || !fecha || !hora) {
       setError("Completa todos los campos y selecciona un vehículo.");
       return;
     }
 
     setSubmitting(true);
+
     try {
-      // Resolver id_servicio real (obligatorio para comprobar disponibilidad)
+      // ✅ Resolver id_servicio (único paso necesario)
       const sObj = servicios.find(
         (x) =>
           String(x.id_servicio ?? x.id ?? x.idServicio) === String(servicio) ||
           x.nombre === servicio
       );
+
       const idServicio = sObj?.id_servicio ?? sObj?.id ?? sObj?.idServicio;
 
       if (!idServicio) {
-        setError("Selecciona un servicio válido de la lista.");
-        setSubmitting(false);
+        setError("Selecciona un servicio válido.");
         return;
       }
 
-      // 1) Obtener número de mecánicos (capacidad actual)
-      const resMec = await fetch(`${API}/mecanica/mecanicos`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const mecanicosData = resMec.ok ? await resMec.json() : [];
-      const mecanicosActivos = Array.isArray(mecanicosData)
-        ? mecanicosData.length
-        : 0;
-
-      if (mecanicosActivos <= 0) {
-        setError("No hay mecánicos disponibles en este momento.");
-        setSubmitting(false);
-        return;
-      }
-
-      // 2) Obtener reservas actuales y contar coincidencias (fecha, hora, servicio)
-      const resAll = await fetch(`${API}/mecanica/reservas`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const all = resAll.ok ? await resAll.json() : [];
-
-      const reservasCoincidentes = (Array.isArray(all) ? all : []).filter(
-        (r) => {
-          const rDate = r.fecha
-            ? new Date(r.fecha).toISOString().split("T")[0]
-            : "";
-          return (
-            String(rDate) === String(fecha) &&
-            String(r.hora_inicio) === String(hora) &&
-            Number(r.id_servicio) === Number(idServicio)
-          );
-        }
-      ).length;
-
-      if (reservasCoincidentes >= mecanicosActivos) {
-        setError(
-          `No hay disponibilidad: ya hay ${reservasCoincidentes} reserva(s) para ese servicio a las ${hora} del ${fecha}. Capacidad: ${mecanicosActivos}.`
-        );
-        setSubmitting(false);
-        return;
-      }
-
-      // 3) Si hay espacio, crear reserva
-      const payload = {
-        id_vehiculo: Number(vehiculoId),
-        id_servicio: Number(idServicio),
-        fecha: fecha, // YYYY-MM-DD
-        hora_inicio: hora, // HH:mm
-      };
-
+      // ✅ Enviar reserva (el backend valida TODO)
       const res = await fetch(`${API}/mecanica/reservas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          id_vehiculo: Number(vehiculoId),
+          id_servicio: Number(idServicio),
+          fecha,
+          hora_inicio: hora,
+        }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        // manejar 409 y otros errores con mensajes del backend
-        const err = await res.json().catch(() => ({}));
-        const msg =
-          err.message || err.error || "Error al crear la reserva (server)";
-        setError(msg);
-        setSubmitting(false);
+        // ✅ Mensaje real del backend
+        setError(data.error || "No se pudo crear la reserva.");
         return;
       }
 
-      setSuccess("Reserva creada correctamente ✅");
-      // limpiar formulario
+      // ✅ Éxito real
+      setSuccess(data.message || "Reserva creada correctamente.");
+
+      // ✅ Limpiar formulario
       setMarca("");
       setModelo("");
       setServicio("");
       setFecha("");
       setHora("");
       setVehiculoId("");
+      setAvailabilityCount(0);
     } catch (e) {
+      setError("Error inesperado al confirmar la reserva.");
       console.error(e);
-      setError(e?.message || "Error al confirmar reserva");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // helper para mostrar nombre de servicio desde id/objeto
   const servicioNombre = useMemo(() => {
     if (!servicio) return null;
     const s = servicios.find(
@@ -744,40 +626,43 @@ export default function ReservarServicio() {
 
   return (
     <div className="space-y-6">
-      {/* Mostrar error global si hay */}
       {error && (
         <div className="p-4 rounded-xl bg-red-600/20 border border-red-600/50 text-red-300">
           {error}
         </div>
       )}
 
-      {/* Disponibilidad info */}
+      {success && (
+        <div className="p-4 rounded-xl bg-green-600/20 border border-green-600/50 text-green-300">
+          {success}
+        </div>
+      )}
+
       {canCheckAvailability && (
         <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-white/80 flex items-center gap-3">
           {checkingAvailability ? (
-            <span>Comprobando disponibilidad…</span>
+            <span>⏳ Comprobando disponibilidad…</span>
           ) : isSlotFull ? (
             <span className="text-red-400 font-semibold">
-              Lo sentimos — ya se alcanzó la capacidad ({mecanicosCount}) para
-              este servicio en esa fecha y hora.
+              ⚠️ No hay disponibilidad: ya existen {availabilityCount} reservas
+              para esta fecha y hora, y solo hay {mecanicosCount} mecánico(s)
+              disponible(s).
             </span>
           ) : (
             <span className="text-green-300">
-              Disponibilidad: {availableSlots} de {mecanicosCount} espacios
-              libres para esa fecha/hora.
+              ✅ Disponibilidad: {availableSlots} de {mecanicosCount} cupos
+              libres para esta fecha y hora.
             </span>
           )}
         </div>
       )}
 
-      {/* Mostrar spinner si está cargando */}
       {loading && (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/60 text-center">
           ⏳ Cargando datos...
         </div>
       )}
 
-      {/* CARD 1: Selección de vehículo */}
       <section className="relative rounded-2xl border border-white/10 bg-white/5 p-6">
         <Ellipsis className="absolute right-4 top-4 text-white/60" size={18} />
         <h3 className="text-white font-semibold mb-4">Seleccionar vehículo</h3>
@@ -841,7 +726,6 @@ export default function ReservarServicio() {
         )}
       </section>
 
-      {/* CARD 2: Servicio (cargado desde backend) */}
       <section className="relative rounded-2xl border border-white/10 bg-white/5 p-6">
         <Ellipsis className="absolute right-4 top-4 text-white/60" size={18} />
         <div className="flex flex-col gap-2">
@@ -853,7 +737,6 @@ export default function ReservarServicio() {
               label=""
               value={servicioNombreValor}
               onChange={(val) => {
-                // val puede venir como "Nombre — 60 min" — extraemos el nombre antes del " — "
                 const name = String(val).split(" — ")[0].trim();
                 const found = servicios.find((s) => s.nombre === name);
                 if (found) {
@@ -861,7 +744,6 @@ export default function ReservarServicio() {
                     found.id_servicio ?? found.id ?? found.idServicio
                   );
                 } else {
-                  // usuario escribió texto libre o eligió opción sin id
                   setServicio(val);
                 }
               }}
