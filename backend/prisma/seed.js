@@ -112,24 +112,80 @@ async function main() {
   console.log("🔄 Secuencias de Marcas y Modelos reiniciadas.");
 
   // ===========================
-  // 🚘 Crear marcas y modelos iniciales
+  // 🚘 Crear marcas y modelos iniciales (ACTUALIZADO)
   // ===========================
   const dataMarcasModelos = [
     {
       nombre: "Toyota",
-      modelos: ["Corolla", "Hilux", "Yaris", "RAV4"],
-    },
-    {
-      nombre: "Nissan",
-      modelos: ["Sentra", "Versa", "Frontier", "Kicks"],
-    },
-    {
-      nombre: "Ford",
-      modelos: ["Ranger", "Focus", "Explorer", "Fiesta"],
+      modelos: [
+        "Yaris",
+        "Corolla",
+        "Hilux",
+        "Etios",
+        "RAV4",
+        "Fortuner",
+        "Avanza",
+      ],
     },
     {
       nombre: "Hyundai",
-      modelos: ["Elantra", "Tucson", "Santa Fe", "Accent"],
+      modelos: [
+        "Accent",
+        "Elantra",
+        "i10",
+        "Tucson",
+        "Santa Fe",
+        "Creta",
+        "H-1",
+      ],
+    },
+    {
+      nombre: "Kia",
+      modelos: ["Picanto", "Rio", "Cerato", "Sportage", "Sorento", "Soluto"],
+    },
+    {
+      nombre: "Nissan",
+      modelos: ["Sentra", "Versa", "Tiida", "Qashqai", "X-Trail", "Frontier"],
+    },
+    {
+      nombre: "Chevrolet",
+      modelos: ["Sail", "Spark", "Cruze", "Onix", "Tracker"],
+    },
+    {
+      nombre: "Suzuki",
+      modelos: ["Swift", "Alto", "Grand Vitara", "Jimny"],
+    },
+    {
+      nombre: "Volkswagen",
+      modelos: ["Gol", "Polo", "Jetta", "Amarok", "Tiguan"],
+    },
+    {
+      nombre: "Honda",
+      modelos: ["Civic", "Accord", "CR-V", "HR-V"],
+    },
+    {
+      nombre: "Mazda",
+      modelos: ["3", "CX-5", "CX-3"],
+    },
+    {
+      nombre: "Ford",
+      modelos: ["Fiesta", "Focus", "Ranger", "EcoSport"],
+    },
+    // Marcas adicionales sin modelos específicos en la lista original, pero presentes en la base
+    { nombre: "Renault", modelos: [] },
+    { nombre: "Subaru", modelos: [] },
+    { nombre: "Mitsubishi", modelos: [] },
+    { nombre: "Jeep", modelos: [] },
+    { nombre: "BMW", modelos: [] },
+    { nombre: "Mercedes-Benz", modelos: [] },
+    { nombre: "Audi", modelos: [] },
+    { nombre: "Chery", modelos: [] },
+    { nombre: "JAC", modelos: [] },
+    { nombre: "Changan", modelos: [] },
+    // Opción genérica
+    {
+      nombre: "Otro",
+      modelos: ["Otro"],
     },
   ];
 

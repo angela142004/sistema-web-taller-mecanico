@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// ==========================================
+// FUNCIONES PARA EL ADMINISTRADOR
+// ==========================================
+
 /**
  * @desc Crear un mecánico desde el panel admin
  */
@@ -119,7 +123,7 @@ export const getMecanicos = async (req, res) => {
 };
 
 /**
- * @desc Obtener mecánico por ID
+ * @desc Obtener mecánico por ID (de tabla Mecánicos)
  */
 export const getMecanicoById = async (req, res) => {
   try {
@@ -142,7 +146,7 @@ export const getMecanicoById = async (req, res) => {
 };
 
 /**
- * @desc Actualizar datos de mecánico
+ * @desc Actualizar datos de mecánico (Admin)
  */
 export const updateMecanico = async (req, res) => {
   try {
@@ -201,6 +205,7 @@ export const deleteMecanico = async (req, res) => {
   }
 };
 
+// ==========================================
 // ⭐ FUNCIONES NUEVAS: PERFIL DEL PROPIO MECÁNICO
 // ==========================================
 

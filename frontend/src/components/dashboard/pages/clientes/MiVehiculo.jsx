@@ -1,5 +1,99 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { ChevronDown, Search, Check } from "lucide-react";
 
+// === COMPONENTE INTERNO: SELECT CON BÚSQUEDA ===
+const SearchableSelect = ({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelect = (option) => {
+    onChange(option);
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  return (
+    <div className="relative w-full" ref={wrapperRef}>
+      <div
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`${className} flex items-center justify-between cursor-pointer ${
+          disabled ? "opacity-50 cursor-not-allowed" : ""
+        }`}
+      >
+        <span className={value ? "text-white" : "text-white/70"}>
+          {value || placeholder}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-white/70 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 mt-1 w-full bg-[#3b138d] border border-white/20 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-2 border-b border-white/10 sticky top-0 bg-[#3b138d]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Filtrar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#2a0e66] text-white text-sm rounded-lg py-2 pl-9 pr-3 outline-none border border-white/10 placeholder:text-white/40"
+              />
+            </div>
+          </div>
+          <ul className="max-h-60 overflow-y-auto custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <li
+                  key={opt}
+                  onClick={() => handleSelect(opt)}
+                  className={`px-4 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${
+                    value === opt ? "bg-white/20 font-medium" : "text-white/80"
+                  }`}
+                >
+                  {opt}
+                  {value === opt && <Check className="w-3 h-3" />}
+                </li>
+              ))
+            ) : (
+              <li className="px-4 py-3 text-sm text-white/50 text-center">
+                Sin resultados
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Fallbacks
 const BRANDS = [
   "Toyota",
   "Hyundai",
@@ -17,14 +111,15 @@ const MODELS_BY_BRAND = {
   Volkswagen: ["Gol", "Polo", "T-Cross"],
 };
 
+// Estilo base (el mismo que tenías)
 const pill =
   "h-12 w-full rounded-full bg-[#3b138d] text-white placeholder:text-white/70 px-5 outline-none border border-white/10 focus:ring-2 focus:ring-white/20";
 
 export default function MiVehiculo() {
-  const [marcasBackend, setMarcasBackend] = useState([]); // [{ id_marca, nombre }]
-  const [modelosBackend, setModelosBackend] = useState({}); // { [id_marca]: [ { id_modelo, nombre } ] }
-
+  const [marcasBackend, setMarcasBackend] = useState([]);
+  const [modelosBackend, setModelosBackend] = useState({});
   const [vehiculos, setVehiculos] = useState([]);
+
   const [marca, setMarca] = useState("");
   const [modelo, setModelo] = useState("");
   const [anio, setAnio] = useState("");
@@ -35,90 +130,68 @@ export default function MiVehiculo() {
   const [success, setSuccess] = useState("");
   const [editId, setEditId] = useState(null);
 
-  // API base from .env (Vite)
   const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
   const token = localStorage.getItem("token") || "";
 
-  // Cargar marcas desde el backend (usada en useEffect inicial)
+  // 1. Cargar marcas
   const loadMarcasFromBackend = async () => {
     try {
       const res = await fetch(`${API}/mecanica/marcas`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        console.warn("[MiVehiculo] loadMarcasFromBackend no ok:", res.status);
         setMarcasBackend([]);
         return;
       }
       const data = await res.json();
       setMarcasBackend(Array.isArray(data) ? data : []);
-      console.log(
-        "[MiVehiculo] marcas cargadas:",
-        Array.isArray(data) ? data.length : 0
-      );
     } catch (e) {
-      console.warn("[MiVehiculo] loadMarcasFromBackend error:", e.message);
+      console.warn("Error marcas:", e.message);
       setMarcasBackend([]);
     }
   };
 
-  // --- UNICO useEffect inicial: cargar marcas y vehículos ---
   useEffect(() => {
-    // diagnóstico rápido
-    console.log("[MiVehiculo] API:", API, "token presente:", !!token);
     loadMarcasFromBackend();
     fetchVehiculos();
     // eslint-disable-next-line
   }, []);
 
-  // cargar marcas del backend (fallback al array BRANDS)
-  const loadMarcas = async () => {
-    try {
-      const res = await fetch(`${API}/mecanica/marcas`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) {
-        setMarcasBackend([]); // fallback
-        return;
-      }
-      const data = await res.json();
-      setMarcasBackend(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.warn("No se pudo cargar marcas:", e.message);
-      setMarcasBackend([]);
-    }
-  };
-
-  // cargar modelos del backend cuando cambia la marca (usa API)
+  // 2. Cargar modelos dinámicamente
   useEffect(() => {
     const loadModelos = async () => {
       const marcaObj = marcasBackend.find((m) => m.nombre === marca);
-      if (!marcaObj) {
-        // limpiar modelos si marca se deselecciona
-        return;
-      }
+      if (!marcaObj) return;
+
+      // Si ya los tenemos en cache, no recargar
+      if (modelosBackend[marcaObj.id_marca]) return;
+
       try {
         const res = await fetch(
           `${API}/mecanica/modelos?marcaId=${marcaObj.id_marca}`,
           { headers: token ? { Authorization: `Bearer ${token}` } : {} }
         );
-        if (!res.ok) {
-          // fallback: no asignar
-          return;
-        }
+        if (!res.ok) return;
         const data = await res.json();
         setModelosBackend((prev) => ({
           ...prev,
           [marcaObj.id_marca]: data || [],
         }));
       } catch (e) {
-        console.warn("No se pudo cargar modelos:", e.message);
+        console.warn("Error modelos:", e.message);
       }
     };
     loadModelos();
-  }, [marca, marcasBackend, API, token]);
+  }, [marca, marcasBackend, API, token, modelosBackend]);
 
-  // modelOptions: prioriza backend, luego fallback local
+  // Lista de Nombres de Marcas (para el Select)
+  const brandOptions = useMemo(() => {
+    return marcasBackend.length > 0
+      ? marcasBackend.map((m) => m.nombre)
+      : BRANDS;
+  }, [marcasBackend]);
+
+  // Lista de Nombres de Modelos (para el Select)
   const modelOptions = useMemo(() => {
     const marcaObj = marcasBackend.find((m) => m.nombre === marca);
     if (marcaObj && modelosBackend[marcaObj.id_marca]?.length) {
@@ -127,15 +200,10 @@ export default function MiVehiculo() {
     return marca && MODELS_BY_BRAND[marca] ? MODELS_BY_BRAND[marca] : [];
   }, [marca, marcasBackend, modelosBackend]);
 
-  // función para cargar vehículos del cliente (enviar token y manejar 401/403)
   const fetchVehiculos = async () => {
     setLoading(true);
     setError("");
     try {
-      console.log(
-        "[MiVehiculo] GET /mecanica/vehiculos - enviando Authorization:",
-        !!token
-      );
       const res = await fetch(`${API}/mecanica/vehiculos`, {
         headers: {
           "Content-Type": "application/json",
@@ -143,30 +211,17 @@ export default function MiVehiculo() {
         },
       });
 
-      console.log("[MiVehiculo] GET /mecanica/vehiculos status:", res.status);
-
       if (res.status === 401 || res.status === 403) {
-        // Mostrar mensaje claro al usuario
-        const body = await res.json().catch(() => ({}));
-        const msg = body.message || "No autorizado. Inicia sesión nuevamente.";
-        setError(msg);
+        setError("No autorizado. Inicia sesión nuevamente.");
         setVehiculos([]);
         return;
       }
-
-      if (!res.ok) {
-        // otros errores
-        const body = await res.text().catch(() => "");
-        console.warn("[MiVehiculo] fetchVehiculos no ok:", res.status, body);
-        throw new Error("No se pudieron obtener los vehículos");
-      }
+      if (!res.ok) throw new Error("No se pudieron obtener los vehículos");
 
       const data = await res.json();
-      console.log("[MiVehiculo] Datos de vehiculos:", data);
       setVehiculos(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("[MiVehiculo] Error fetchVehiculos:", e);
-      setError(e.message || "Error al cargar vehículos");
+      setError(e.message);
       setVehiculos([]);
     } finally {
       setLoading(false);
@@ -201,25 +256,19 @@ export default function MiVehiculo() {
         anio: Number(anio),
         placa: placa.trim(),
       };
-
       const url = editId
         ? `${API}/mecanica/vehiculos/${editId}`
         : `${API}/mecanica/vehiculos`;
-
       const method = editId ? "PUT" : "POST";
-
-      console.log("[MiVehiculo] enviando", method, url, "con token:", !!token);
 
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}), // ← asegurar que token se envía
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
-
-      console.log("[MiVehiculo]", method, "response status:", res.status);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -230,7 +279,6 @@ export default function MiVehiculo() {
       resetForm();
       await fetchVehiculos();
     } catch (e) {
-      console.error("[MiVehiculo] error:", e);
       setError(e.message || "Error al guardar");
     } finally {
       setSaving(false);
@@ -240,7 +288,6 @@ export default function MiVehiculo() {
   const handleEdit = (v) => {
     const id = v.id_vehiculo ?? v.id ?? v.idVehiculo;
     setEditId(id);
-    // preferir la relación que viene del backend (modelo.marca.nombre)
     setMarca(v.modelo?.marca?.nombre ?? v.marca ?? "");
     setModelo(v.modelo?.nombre ?? v.modelo ?? "");
     setAnio(v.anio ? String(v.anio) : "");
@@ -257,14 +304,11 @@ export default function MiVehiculo() {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "No se pudo eliminar");
-      }
+      if (!res.ok) throw new Error("No se pudo eliminar");
       setSuccess("Vehículo eliminado");
       await fetchVehiculos();
     } catch (e) {
-      setError(e.message || "Error al eliminar");
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -272,53 +316,41 @@ export default function MiVehiculo() {
 
   return (
     <div className="space-y-6">
-      {/* Formulario: añadir/editar vehículo */}
+      {/* Formulario */}
       <section className="relative rounded-2xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-xl font-semibold text-white mb-4">
           {editId ? "Editar vehículo" : "Agregar vehículo"}
         </h2>
 
         <form onSubmit={handleSave} className="grid gap-4 md:grid-cols-4">
+          {/* MARCA (Searchable) */}
           <div className="md:col-span-1">
             <label className="text-white font-semibold block mb-2">Marca</label>
-            <select
+            <SearchableSelect
+              options={brandOptions}
               value={marca}
-              onChange={(e) => setMarca(e.target.value)}
-              className={`${pill}`}
-            >
-              <option value="">Seleccionar marca</option>
-              {marcasBackend.length > 0
-                ? marcasBackend.map((m) => (
-                    <option key={m.id_marca} value={m.nombre}>
-                      {m.nombre}
-                    </option>
-                  ))
-                : BRANDS.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-            </select>
+              onChange={(val) => {
+                setMarca(val);
+                setModelo("");
+              }}
+              placeholder="Seleccionar marca"
+              className={pill}
+            />
           </div>
 
+          {/* MODELO (Searchable) */}
           <div className="md:col-span-1">
             <label className="text-white font-semibold block mb-2">
               Modelo
             </label>
-            <select
+            <SearchableSelect
+              options={modelOptions}
               value={modelo}
-              onChange={(e) => setModelo(e.target.value)}
-              className={`${pill}`}
-            >
-              <option value="">
-                {modelOptions.length ? "Seleccionar modelo" : "Escribe modelo"}
-              </option>
-              {modelOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              onChange={setModelo}
+              placeholder={marca ? "Seleccionar modelo" : "Escribe modelo"}
+              disabled={!marca}
+              className={pill}
+            />
           </div>
 
           <div className="md:col-span-1">
@@ -326,10 +358,10 @@ export default function MiVehiculo() {
             <input
               type="number"
               min="1900"
-              max={new Date().getFullYear()}
+              max={new Date().getFullYear() + 1}
               value={anio}
               onChange={(e) => setAnio(e.target.value)}
-              className={`${pill}`}
+              className={pill}
               placeholder="2023"
             />
           </div>
@@ -339,7 +371,7 @@ export default function MiVehiculo() {
             <input
               value={placa}
               onChange={(e) => setPlaca(e.target.value)}
-              className={`${pill}`}
+              className={pill}
               placeholder="ABC-123"
             />
           </div>
@@ -363,7 +395,7 @@ export default function MiVehiculo() {
             <button
               type="button"
               onClick={resetForm}
-              className="h-12 px-4 rounded-xl bg-white/5 text-white/90"
+              className="h-12 px-4 rounded-xl bg-white/5 text-white/90 hover:bg-white/10"
             >
               Limpiar
             </button>
@@ -396,29 +428,32 @@ export default function MiVehiculo() {
               return (
                 <div
                   key={id}
-                  className="p-4 rounded-xl bg-slate-800/60 flex items-center justify-between"
+                  className="p-4 rounded-xl bg-slate-800/60 flex items-center justify-between border border-white/5 hover:border-white/20 transition"
                 >
                   <div>
-                    <div className="font-semibold text-white">
-                      {marcaNombre} {modeloNombre}
+                    <div className="font-semibold text-white text-lg">
+                      {marcaNombre}{" "}
+                      <span className="text-white/70 font-normal">
+                        {modeloNombre}
+                      </span>
                     </div>
-                    <div className="text-sm text-white/70">
-                      Año: {v.anio || v.year || "—"}
-                    </div>
-                    <div className="text-sm text-white/70">
-                      Placa: {v.placa || v.plate || "—"}
+                    <div className="text-sm text-white/70 mt-1">
+                      Año: {v.anio || "—"} • Placa:{" "}
+                      <span className="text-white font-mono bg-white/10 px-1 rounded">
+                        {v.placa || "—"}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(v)}
-                      className="px-3 py-1 rounded-md bg-white/5 text-white hover:bg-white/10"
+                      className="px-3 py-1.5 rounded-md bg-white/5 text-white hover:bg-white/10 text-sm"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDelete(id)}
-                      className="px-3 py-1 rounded-md bg-red-600/80 text-white hover:bg-red-600"
+                      className="px-3 py-1.5 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 text-sm"
                     >
                       Eliminar
                     </button>

@@ -4,18 +4,20 @@ import { Eye, EyeOff } from "lucide-react";
 const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
 
 export default function Configuracion() {
+  // === ESTADOS ===
   const [usuario, setUsuario] = useState({
     nombre: "",
     correo: "",
     telefono: "",
-    direccion: "",
+    especialidad: "",
+    rol: "mecanico",
   });
 
   const [form, setForm] = useState({
     nuevoNombre: "",
     nuevoCorreo: "",
     nuevoTelefono: "",
-    nuevaDireccion: "",
+    nuevaEspecialidad: "",
     nuevaPass: "",
     repetirPass: "",
   });
@@ -26,45 +28,40 @@ export default function Configuracion() {
   const [showRepeat, setShowRepeat] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // ======== Cargar datos usuario desde backend ========
+  // === 1. CARGAR DATOS (RUTA EXCLUSIVA DE MECÁNICO) ===
   const loadUser = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token") || "";
+      const token = localStorage.getItem("token");
       const userStored = JSON.parse(localStorage.getItem("user")) || {};
       const userId =
         userStored.id_usuario || localStorage.getItem("id_usuario");
 
-      if (!userId) {
-        console.warn("No se encontró ID de usuario");
-        return;
-      }
+      if (!userId) return;
 
-      const res = await fetch(`${API}/mecanica/users/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // 👇 USAMOS DIRECTAMENTE LA RUTA DEL CONTROLADOR DE MECÁNICOS
+      const res = await fetch(`${API}/mecanica/mecanicos/profile/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error("Error al obtener usuario");
+      if (!res.ok) throw new Error("Error al obtener perfil del mecánico");
       const data = await res.json();
-
-      console.log("Usuario cargado:", data);
 
       setUsuario(data);
 
-      // === LÓGICA DE FOTO: Si existe, construimos la URL completa ===
+      // Foto
       if (data.foto) {
         setPreview(`${API}/uploads/${data.foto}`);
       } else {
         setPreview("/default-avatar.png");
       }
 
+      // Llenar formulario
       setForm((f) => ({
         ...f,
         nuevoNombre: data.nombre,
         nuevoCorreo: data.correo,
         nuevoTelefono: data.telefono || "",
-        nuevaDireccion: data.direccion || "",
+        nuevaEspecialidad: data.especialidad || "", // Campo exclusivo mecánico
       }));
     } catch (e) {
       console.error(e);
@@ -75,7 +72,7 @@ export default function Configuracion() {
     loadUser();
   }, [loadUser]);
 
-  // ======== Seleccionar foto (Vista previa local) ========
+  // === 2. SUBIR FOTO (Esta ruta es compartida y está bien) ===
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -84,82 +81,54 @@ export default function Configuracion() {
     }
   };
 
-  // ======== Subir foto al Backend ========
   const handleUploadPhoto = async () => {
-    // 1. Verificar que haya una imagen seleccionada
-    if (!selectedFile) return alert("Selecciona una imagen primero");
-
-    // 2. Obtener el token para tener permiso
-    const token = localStorage.getItem("token") || "";
-
-    // 3. Crear el paquete de datos (FormData)
+    if (!selectedFile) return alert("Selecciona imagen");
+    const token = localStorage.getItem("token");
     const formData = new FormData();
-    // ✅ IMPORTANTE: El nombre "foto" aquí debe coincidir exactamente
-    // con lo que pusimos en el backend: upload.single("foto")
     formData.append("foto", selectedFile);
 
     try {
-      setMsg("⏳ Subiendo imagen..."); // Feedback visual
-
-      // ✅ 4. LA RUTA CORRECTA
-      // Basado en tu index.js (app.use("/mecanica", userRoutes))
-      // y tu user.routes.js (router.post("/upload-photo", ...))
       const res = await fetch(`${API}/mecanica/upload-photo`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          // ✅ OJO: NO agregar "Content-Type": "application/json" aquí.
-          // fetch lo detecta automáticamente al usar FormData. Si lo pones, falla.
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Error al subir imagen");
+      if (res.ok) {
+        const data = await res.json();
+        setPreview(`${API}/uploads/${data.foto}`);
+        setMsg("✅ Foto actualizada");
+
+        // Actualizar localStorage para Topbar
+        const userStored = JSON.parse(localStorage.getItem("user")) || {};
+        userStored.foto = data.foto;
+        localStorage.setItem("user", JSON.stringify(userStored));
+        window.dispatchEvent(new Event("storage"));
       }
-
-      const data = await res.json();
-
-      // 5. Éxito: Actualizar la vista con la URL real del servidor
-      // Ahora la imagen viene de http://localhost:4001/uploads/....
-      setPreview(`${API}/uploads/${data.foto}`);
-      setMsg("✅ Foto actualizada correctamente");
-      setSelectedFile(null); // Limpiamos la selección
-
-      // ✅ 6. Actualizar el localStorage para que el Topbar se entere
-      const userStored = JSON.parse(localStorage.getItem("user")) || {};
-      userStored.foto = data.foto; // Guardamos el nuevo nombre de archivo
-      localStorage.setItem("user", JSON.stringify(userStored));
-
-      // Opcional: Disparar un evento para avisar al Topbar que recargue (si fuera necesario)
-      window.dispatchEvent(new Event("storage"));
-    } catch (error) {
-      console.error(error);
-      setMsg(`❌ Error: ${error.message}`);
+    } catch (e) {
+      console.error(e);
+      setMsg("❌ Error al subir imagen");
     }
   };
 
-  // ======== Actualizar campos usuario ========
+  // === 3. ACTUALIZAR DATOS (RUTA EXCLUSIVA DE MECÁNICO) ===
   const handleUpdateField = async () => {
-    const token = localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token");
     const userStored = JSON.parse(localStorage.getItem("user")) || {};
-    const userId = userStored.id_usuario || localStorage.getItem("id_usuario");
-
-    if (!userId) {
-      setMsg("❌ Error: No se identifica el usuario.");
-      return;
-    }
+    const userId = userStored.id_usuario;
 
     try {
+      // 👇 USAMOS LA RUTA DEL CONTROLADOR DE MECÁNICOS
+      const url = `${API}/mecanica/mecanicos/profile/${userId}`;
+
       const payload = {
         nombre: form.nuevoNombre,
         correo: form.nuevoCorreo,
         telefono: form.nuevoTelefono,
-        direccion: form.nuevaDireccion,
+        especialidad: form.nuevaEspecialidad, // Campo clave del mecánico
       };
 
-      const res = await fetch(`${API}/mecanica/users/${userId}`, {
+      const res = await fetch(url, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -168,32 +137,38 @@ export default function Configuracion() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Error al actualizar datos");
-      setMsg("✅ Datos actualizados correctamente");
+      if (!res.ok) throw new Error("Error al actualizar");
+
+      setMsg("✅ Datos de mecánico actualizados correctamente");
+
+      // Actualizar localStorage
+      userStored.nombre = form.nuevoNombre;
+      userStored.correo = form.nuevoCorreo;
+      localStorage.setItem("user", JSON.stringify(userStored));
+
       loadUser();
-    } catch {
+    } catch (e) {
+      console.error(e);
       setMsg("❌ Error al actualizar datos");
     }
   };
 
-  // ======== Cambiar contraseña ========
+  // === 4. CAMBIAR CONTRASEÑA (RUTA EXCLUSIVA DE MECÁNICO) ===
   const handleChangePassword = async () => {
-    const token = localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token");
     const userStored = JSON.parse(localStorage.getItem("user")) || {};
-    const userId = userStored.id_usuario || localStorage.getItem("id_usuario");
-
-    if (!userId) {
-      setMsg("❌ Error: No se identifica el usuario.");
-      return;
-    }
+    const userId = userStored.id_usuario;
 
     if (form.nuevaPass !== form.repetirPass) {
-      setMsg("⚠️ Las contraseñas no coinciden");
-      return;
+      return setMsg("⚠️ Las contraseñas no coinciden");
     }
+    if (!form.nuevaPass) return setMsg("⚠️ Escribe una contraseña");
 
     try {
-      const res = await fetch(`${API}/mecanica/users/${userId}`, {
+      // El controlador updateMecanicoProfile también maneja la contraseña
+      const url = `${API}/mecanica/mecanicos/profile/${userId}`;
+
+      const res = await fetch(url, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -211,14 +186,15 @@ export default function Configuracion() {
     }
   };
 
+  // Estilos
   const input =
-    "w-full h-12 px-4 rounded-xl bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-[#3b138d] outline-none";
+    "w-full h-12 px-4 rounded-xl bg-white text-black focus:ring-2 focus:ring-[#3b138d] outline-none";
   const button =
     "h-12 px-6 rounded-xl bg-[#3b138d] hover:bg-[#4316a1] text-white font-semibold transition w-full sm:w-auto";
 
   return (
     <div className="text-white w-full space-y-10 p-6 sm:p-10">
-      {/* ===== PERFIL ===== */}
+      {/* HEADER PERFIL */}
       <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 flex flex-col sm:flex-row items-center justify-center gap-8 shadow-md">
         <div className="flex flex-col items-center">
           <img
@@ -227,7 +203,7 @@ export default function Configuracion() {
             className="w-48 h-48 rounded-full object-cover border-4 border-[#3b138d]"
             onError={(e) => {
               e.target.src = "/default-avatar.png";
-            }} // Si falla la carga, poner default
+            }}
           />
           <input
             type="file"
@@ -251,96 +227,130 @@ export default function Configuracion() {
         </div>
 
         <div className="text-center sm:text-left max-w-md">
-          <h2 className="text-2xl font-semibold">
-            {usuario.nombre || "Cargando..."}
-          </h2>
-          <p className="text-white/80">{usuario.correo || "..."}</p>
-          <p className="text-white/70 mt-2">
-            Teléfono: {usuario.telefono || "—"} <br />
-            Dirección: {usuario.direccion || "—"}
-          </p>
+          <h2 className="text-2xl font-semibold">{usuario.nombre}</h2>
+          <p className="text-white/80">{usuario.correo}</p>
+          <div className="text-white/70 mt-2">
+            <p>
+              Rol:{" "}
+              <span className="uppercase font-bold text-violet-400">
+                MECÁNICO
+              </span>
+            </p>
+            <p>Teléfono: {usuario.telefono || "—"}</p>
+            <p>Especialidad: {usuario.especialidad || "—"}</p>
+          </div>
         </div>
       </section>
 
-      {/* ===== EDITAR INFORMACIÓN ===== */}
-      <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 shadow-md space-y-4">
-        <h3 className="text-xl font-semibold">Actualizar datos personales</h3>
-        <input
-          className={input}
-          placeholder="Nuevo nombre"
-          value={form.nuevoNombre}
-          onChange={(e) => setForm({ ...form, nuevoNombre: e.target.value })}
-        />
-        <input
-          className={input}
-          placeholder="Nuevo correo"
-          value={form.nuevoCorreo}
-          onChange={(e) => setForm({ ...form, nuevoCorreo: e.target.value })}
-        />
-        <input
-          className={input}
-          placeholder="Nuevo teléfono"
-          value={form.nuevoTelefono}
-          onChange={(e) => setForm({ ...form, nuevoTelefono: e.target.value })}
-        />
-        <input
-          className={input}
-          placeholder="Nueva dirección"
-          value={form.nuevaDireccion}
-          onChange={(e) => setForm({ ...form, nuevaDireccion: e.target.value })}
-        />
-        <button onClick={handleUpdateField} className={button}>
-          Guardar cambios
-        </button>
+      {/* FORMULARIOS */}
+      <section className="grid md:grid-cols-2 gap-8">
+        {/* DATOS PERSONALES */}
+        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-4 shadow-md">
+          <h3 className="text-xl font-semibold mb-4">Datos personales</h3>
+
+          <div>
+            <label className="text-sm text-gray-400">Nombre</label>
+            <input
+              className={input}
+              value={form.nuevoNombre}
+              onChange={(e) =>
+                setForm({ ...form, nuevoNombre: e.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-400">Correo</label>
+            <input
+              className={input}
+              value={form.nuevoCorreo}
+              onChange={(e) =>
+                setForm({ ...form, nuevoCorreo: e.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-400">Teléfono</label>
+            <input
+              className={input}
+              value={form.nuevoTelefono}
+              onChange={(e) =>
+                setForm({ ...form, nuevoTelefono: e.target.value })
+              }
+            />
+          </div>
+
+          {/* CAMPO EXCLUSIVO MECÁNICO */}
+          <div>
+            <label className="text-sm text-gray-400">Especialidad</label>
+            <input
+              className={input}
+              value={form.nuevaEspecialidad}
+              onChange={(e) =>
+                setForm({ ...form, nuevaEspecialidad: e.target.value })
+              }
+              placeholder="Ej: Motores, Frenos..."
+            />
+          </div>
+
+          <button onClick={handleUpdateField} className={button}>
+            Guardar cambios
+          </button>
+        </div>
+
+        {/* CAMBIO DE CONTRASEÑA */}
+        <div className="rounded-2xl bg-[#1a1730]/80 p-6 space-y-4 shadow-md">
+          <h3 className="text-xl font-semibold mb-4">Cambiar contraseña</h3>
+          <div className="relative">
+            <input
+              type={showPass ? "text" : "password"}
+              className={input}
+              placeholder="Nueva contraseña"
+              value={form.nuevaPass}
+              onChange={(e) => setForm({ ...form, nuevaPass: e.target.value })}
+            />
+            <span
+              className="absolute right-4 top-4 cursor-pointer text-gray-600"
+              onClick={() => setShowPass(!showPass)}
+            >
+              {showPass ? <EyeOff /> : <Eye />}
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type={showRepeat ? "text" : "password"}
+              className={input}
+              placeholder="Repetir contraseña"
+              value={form.repetirPass}
+              onChange={(e) =>
+                setForm({ ...form, repetirPass: e.target.value })
+              }
+            />
+            <span
+              className="absolute right-4 top-4 cursor-pointer text-gray-600"
+              onClick={() => setShowRepeat(!showRepeat)}
+            >
+              {showRepeat ? <EyeOff /> : <Eye />}
+            </span>
+          </div>
+          <button onClick={handleChangePassword} className={button}>
+            Actualizar contraseña
+          </button>
+        </div>
       </section>
 
-      {/* ===== CAMBIAR CONTRASEÑA ===== */}
-      <section className="w-full rounded-2xl bg-[#1a1730]/80 p-8 shadow-md space-y-4">
-        <h3 className="text-xl font-semibold">Cambiar contraseña</h3>
-        <div className="relative">
-          <input
-            type={showPass ? "text" : "password"}
-            className={input}
-            placeholder="Nueva contraseña"
-            value={form.nuevaPass}
-            onChange={(e) => setForm({ ...form, nuevaPass: e.target.value })}
-          />
-          <span
-            className="absolute right-4 top-4 cursor-pointer"
-            onClick={() => setShowPass(!showPass)}
-          >
-            {showPass ? (
-              <EyeOff className="text-gray-500" />
-            ) : (
-              <Eye className="text-gray-500" />
-            )}
-          </span>
+      {msg && (
+        <div
+          className={`mt-6 px-6 py-3 rounded-xl max-w-2xl mx-auto border text-center ${
+            msg.includes("❌") || msg.includes("⚠️")
+              ? "bg-red-500/20 border-red-500 text-red-200"
+              : "bg-green-500/20 border-green-500 text-green-200"
+          }`}
+        >
+          {msg}
         </div>
-        <div className="relative">
-          <input
-            type={showRepeat ? "text" : "password"}
-            className={input}
-            placeholder="Repetir contraseña"
-            value={form.repetirPass}
-            onChange={(e) => setForm({ ...form, repetirPass: e.target.value })}
-          />
-          <span
-            className="absolute right-4 top-4 cursor-pointer"
-            onClick={() => setShowRepeat(!showRepeat)}
-          >
-            {showRepeat ? (
-              <EyeOff className="text-gray-500" />
-            ) : (
-              <Eye className="text-gray-500" />
-            )}
-          </span>
-        </div>
-        <button onClick={handleChangePassword} className={button}>
-          Actualizar contraseña
-        </button>
-      </section>
-
-      <p className="text-center text-sm mt-4 text-white/80">{msg}</p>
+      )}
     </div>
   );
 }
