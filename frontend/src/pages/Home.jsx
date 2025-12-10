@@ -1,12 +1,38 @@
 // src/pages/Home.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react"; // ← asegúrate de tener esto arriba
 
 const Home = () => {
   const [correo, setCorreo] = useState("");
   const [contraseña, setContraseña] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const rol = localStorage.getItem("rol");
+
+    if (token && rol) {
+      if (rol === "admin") navigate("/dashboard/admin", { replace: true });
+      else if (rol === "mecanico")
+        navigate("/dashboard/mecanico", { replace: true });
+      else navigate("/dashboard/cliente", { replace: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const rol = localStorage.getItem("rol");
+
+    if (token && rol) {
+      if (rol === "admin") navigate("/dashboard/admin", { replace: true });
+      else if (rol === "mecanico")
+        navigate("/dashboard/mecanico", { replace: true });
+      else navigate("/dashboard/cliente", { replace: true });
+    }
+  }, []);
 
   // 🔹 Función para manejar el login
   const handleSubmit = async (e) => {
@@ -147,17 +173,75 @@ const Home = () => {
                   />
                 </svg>
               </div>
+
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Contraseña"
                 value={contraseña}
                 onChange={(e) => setContraseña(e.target.value)}
-                className="w-full bg-slate-700/50 text-white border border-slate-600/50 rounded-xl py-3 pl-12 pr-4 
-                  focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 
-                  hover:border-slate-500/70 transition-all duration-300 placeholder-slate-400
-                  focus:bg-slate-700/70 group-focus-within/field:shadow-lg"
+                className="w-full bg-slate-700/50 text-white border border-slate-600/50 rounded-xl py-3 pl-12 pr-12 
+      focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 
+      hover:border-slate-500/70 transition-all duration-300 placeholder-slate-400
+      focus:bg-slate-700/70 group-focus-within/field:shadow-lg"
               />
-              <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-500 scale-x-0 group-focus-within/field:scale-x-100 transition-transform duration-300 rounded-full"></div>
+
+              {/* Botón para mostrar / ocultar */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 
+               hover:text-purple-300 transition-colors"
+              >
+                {!showPassword ? (
+                  // 👁️ Ojo normal = contraseña oculta (estado inicial)
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 
+             4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                ) : (
+                  // 👁️ Tachado = contraseña visible (cuando presiona)
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 
+             0-8.268-2.943-9.542-7a9.97 9.97 0 012.563-4.261M6.18 
+             6.18A9.953 9.953 0 0112 5c4.477 0 8.268 2.943 
+             9.542 7a9.964 9.964 0 01-4.043 5.137M6.18 
+             6.18L3 3m3.18 3.18l12 12"
+                    />
+                  </svg>
+                )}
+              </button>
+
+              <div
+                className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-500 
+              scale-x-0 group-focus-within/field:scale-x-100 transition-transform duration-300 rounded-full"
+              ></div>
             </div>
 
             {/* Botón de login */}

@@ -9,6 +9,7 @@ import {
   crearHistorialSemana,
   obtenerHistorialSemanas,
   eliminarHistorialSemana, // <-- nuevo
+  obtenerCotizacionesConfirmadas, // <-- nuevo
 } from "../controllers/cotizacion.controller.js";
 
 const router = Router();
@@ -27,6 +28,9 @@ router.post("/", crearCotizacion);
 
 // 📌 Obtener todas
 router.get("/", obtenerCotizaciones);
+
+// 📌 Obtener cotizaciones confirmadas
+router.get("/confirmadas", obtenerCotizacionesConfirmadas);
 
 // 📌 Obtener 1 por ID
 router.get("/:id", obtenerCotizacionPorId);

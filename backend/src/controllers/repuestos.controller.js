@@ -124,3 +124,31 @@ export const deleteRepuesto = async (req, res) => {
     res.status(500).json({ message: "Error al eliminar" });
   }
 };
+/**
+ * @desc Obtener repuestos con stock bajo
+ */
+export const getRepuestosStockBajo = async (req, res) => {
+  try {
+    const LIMITE_STOCK = 5; // 🔥 Cambia este valor si deseas otro límite
+
+    const repuestosBajoStock = await prisma.repuestos.findMany({
+      where: {
+        stock: {
+          lt: LIMITE_STOCK,
+        },
+      },
+      include: {
+        marca: true,
+        modelo: true,
+      },
+      orderBy: {
+        stock: "asc",
+      },
+    });
+
+    res.json(repuestosBajoStock);
+  } catch (error) {
+    console.error("Error al obtener repuestos con stock bajo:", error);
+    res.status(500).json({ message: "Error al cargar notificaciones" });
+  }
+};

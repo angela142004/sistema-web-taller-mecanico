@@ -4,6 +4,7 @@ import {
   createRepuesto,
   updateRepuesto,
   deleteRepuesto,
+  getRepuestosStockBajo,
 } from "../controllers/repuestos.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js"; // Para proteger las rutas
 
@@ -14,5 +15,5 @@ router.get("/", verifyToken, getRepuestos);
 router.post("/", verifyToken, createRepuesto);
 router.put("/:id", verifyToken, updateRepuesto);
 router.delete("/:id", verifyToken, deleteRepuesto);
-
+router.get("/stock-bajo", verifyToken, getRepuestosStockBajo);
 export default router;

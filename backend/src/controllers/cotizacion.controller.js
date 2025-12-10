@@ -268,3 +268,36 @@ export const eliminarHistorialSemana = async (req, res) => {
     res.status(500).json({ message: "Error interno al eliminar historial" });
   }
 };
+
+export const obtenerCotizacionesConfirmadas = async (req, res) => {
+  try {
+    const cotizaciones = await prisma.cotizaciones.findMany({
+      where: {
+        estado: "CONFIRMADO", // <-- AJUSTA según tu campo real
+        // Si usas booleano:
+        // confirmado: true
+      },
+      include: {
+        reserva: {
+          include: {
+            cliente: { include: { usuario: true } },
+            vehiculo: { include: { modelo: true } },
+            servicio: true,
+          },
+        },
+        asignaciones: {
+          include: {
+            mecanico: { include: { usuario: true } },
+          },
+        },
+      },
+    });
+
+    res.json(cotizaciones);
+  } catch (error) {
+    console.error("Error al obtener cotizaciones confirmadas:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener cotizaciones confirmadas" });
+  }
+};
