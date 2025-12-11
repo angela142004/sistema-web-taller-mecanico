@@ -1,40 +1,92 @@
 import { useState, useEffect } from "react";
-import {
-  MessageSquareText,
-  Bell,
-  Menu,
-  X,
-  User,
-  LogOut,
-  Settings,
-  Send,
-  ArrowLeft,
-} from "lucide-react";
+import { Bell, Menu, X, User, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
 
 export default function Topbar({ onOpenSidebar = () => {} }) {
-  const [openChat, setOpenChat] = useState(false);
-  const [openConversation, setOpenConversation] = useState(null);
   const [openProfile, setOpenProfile] = useState(false);
   const [openNotif, setOpenNotif] = useState(false);
-  const [message, setMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const navigate = useNavigate();
 
-  // 1. ESTADO PARA EL USUARIO (Con foto)
+  const [asignacionesMecanico, setAsignacionesMecanico] = useState([]);
+
+  // ================================
+  // ================================
+  // USER DATA
+  // ================================
   const [userData, setUserData] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("user")) || {};
     return {
       nombre: stored.nombre || "Usuario",
       correo: stored.correo || "Cargando...",
-      rol: stored.rol || "mecanico", // Cambié esto a "mecanico"
-      foto: stored.foto || null, // Cargamos la foto del storage si existe
+      rol: stored.rol || "mecanico",
+      foto: stored.foto || null,
     };
   });
 
-  // 2. EFECTO: Sincronizar datos y escuchar cambios
+  // ================================
+  // ================================
+  // FUNCIÓN CORREGIDA PARA CARGAR ASIGNACIONES
+  // ================================
+  const loadAsignaciones = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const userStored = JSON.parse(localStorage.getItem("user")) || {};
+
+      if (!token || !userStored?.id_usuario) return;
+
+      const res = await fetch(`${API}/mecanica/asignaciones`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      // 🔥 Filtrar solo asignaciones del mecánico Y SOLO PENDIENTES
+      const filtradas = data.filter(
+        (a) =>
+          a.mecanico?.usuario?.id_usuario === userStored.id_usuario &&
+          (!a.estado || a.estado.toLowerCase() === "pendiente") // manejo de variaciones
+      );
+
+      setAsignacionesMecanico(filtradas);
+    } catch (error) {
+      console.error("Error cargando asignaciones:", error);
+    }
+  };
+
+  // ================================
+  // CARGA INMEDIATA AL MONTAR
+  // ================================
+  useEffect(() => {
+    loadAsignaciones();
+  }, []);
+
+  // ================================
+  // RECARGAR ASIGNACIONES AL CAMBIAR USER EN LOCALSTORAGE
+  // (cuando cierras sesión y vuelves a entrar)
+  // ================================
+  useEffect(() => {
+    const syncUser = () => {
+      loadAsignaciones(); // recarga inmediata
+    };
+
+    window.addEventListener("storage", syncUser);
+    return () => window.removeEventListener("storage", syncUser);
+  }, []);
+
+  // ================================
+  // CARGAR CUANDO ABRES NOTIFICACIONES
+  // ================================
+  useEffect(() => {
+    if (openNotif) loadAsignaciones();
+  }, [openNotif]);
+
+  // ================================
+  // CARGAR PERFIL DE USUARIO
+  // ================================
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -51,14 +103,14 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
 
         if (res.ok) {
           const data = await res.json();
+
           setUserData({
             nombre: data.nombre,
             correo: data.correo,
             rol: data.rol,
-            foto: data.foto, // Actualizamos la foto desde la BD
+            foto: data.foto,
           });
 
-          // Guardamos en local para persistencia
           localStorage.setItem("user", JSON.stringify(data));
         }
       } catch (error) {
@@ -68,8 +120,6 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
 
     fetchUserData();
 
-    // Escuchar evento personalizado "storage" para actualizar al instante
-    // cuando cambies la foto en Configuración sin recargar
     const handleStorageChange = () => {
       const stored = JSON.parse(localStorage.getItem("user")) || {};
       setUserData((prev) => ({ ...prev, ...stored }));
@@ -79,14 +129,9 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const closeAll = () => {
-    setOpenChat(false);
-    setOpenProfile(false);
-    setOpenNotif(false);
-    setOpenConversation(null);
-    setIsTyping(false);
-  };
-
+  // ================================
+  // LOGOUT
+  // ================================
   const handleLogout = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -105,13 +150,16 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
     }
   };
 
-  const sendMessage = () => {
-    /* ... tu lógica de chat ... */
+  const closeAll = () => {
+    setOpenProfile(false);
+    setOpenNotif(false);
   };
 
   return (
     <>
+      {/* HEADER TOPBAR */}
       <header className="sticky top-0 z-40 h-16 w-full flex items-center justify-between border-b border-white/10 bg-[#14122b]/90 backdrop-blur-md px-4 sm:px-6">
+        {/* BOTÓN SIDEBAR */}
         <button
           onClick={onOpenSidebar}
           className="lg:hidden p-2 rounded-xl text-white hover:bg-white/10 transition"
@@ -119,18 +167,9 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
           <Menu size={22} />
         </button>
 
+        {/* ICONOS DERECHA */}
         <div className="flex items-center gap-3 ml-auto">
-          {/* Chat y Notificaciones (Sin cambios) */}
-          <button
-            onClick={() => {
-              closeAll();
-              setOpenChat(true);
-            }}
-            className="p-2 rounded-xl text-white hover:bg-violet-600/40 relative transition"
-          >
-            <MessageSquareText size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
-          </button>
+          {/* NOTIFICACIONES */}
           <button
             onClick={() => {
               closeAll();
@@ -139,10 +178,14 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
             className="p-2 rounded-xl text-white hover:bg-violet-600/40 relative transition"
           >
             <Bell size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+
+            {/* 🔥 Punto amarillo si hay asignaciones pendientes */}
+            {asignacionesMecanico.length > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+            )}
           </button>
 
-          {/* === ICONO DE PERFIL EN EL HEADER === */}
+          {/* PERFIL */}
           <div
             onClick={() => {
               closeAll();
@@ -155,13 +198,6 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
                 src={`${API}/uploads/${userData.foto}`}
                 alt="Avatar"
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.parentNode.classList.add(
-                    "grid",
-                    "place-items-center"
-                  );
-                }}
               />
             ) : (
               <div className="w-full h-full grid place-items-center">
@@ -172,9 +208,11 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
         </div>
       </header>
 
-      {/* === DROPDOWN DE PERFIL === */}
+      {/* ================================ */}
+      {/* DROPDOWN PERFIL */}
+      {/* ================================ */}
       {openProfile && (
-        <div className="fixed right-4 top-20 z-50 w-72 rounded-2xl bg-[#1d1a38] border border-white/10 p-5 text-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed right-4 top-20 z-50 w-72 rounded-2xl bg-[#1d1a38] border border-white/10 p-5 text-white shadow-2xl">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-base font-semibold">Tu Perfil</h3>
             <button
@@ -186,7 +224,6 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
           </div>
 
           <div className="flex flex-col items-center text-center mb-3">
-            {/* FOTO GRANDE EN EL MENÚ */}
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-600 to-purple-500 mb-2 shadow-lg overflow-hidden border-2 border-white/20">
               {userData.foto ? (
                 <img
@@ -225,6 +262,81 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
               <LogOut size={16} /> Cerrar sesión
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ================================ */}
+      {/* DROPDOWN NOTIFICACIONES */}
+      {/* ================================ */}
+      {openNotif && (
+        <div
+          className="fixed right-4 top-20 z-50 w-96 max-h-[70vh] overflow-y-auto 
+      rounded-2xl bg-[#1d1a38] border border-white/10 p-5 text-white 
+      shadow-2xl"
+        >
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-base font-semibold">Notificaciones</h3>
+            <button
+              onClick={() => setOpenNotif(false)}
+              className="hover:bg-white/10 p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {asignacionesMecanico.length === 0 && (
+            <p className="text-center text-white/50 py-6">
+              No tienes servicios pendientes
+            </p>
+          )}
+
+          {asignacionesMecanico.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm text-white/50 mb-2">Servicios pendientes</p>
+
+              {asignacionesMecanico.map((a) => (
+                <div
+                  key={a.id_asignacion}
+                  onClick={() =>
+                    navigate(`/dashboard/mecanico/servicio/${a.id_asignacion}`)
+                  }
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 cursor-pointer
+               hover:bg-blue-600/20 hover:border-blue-500/40 active:scale-[0.98]
+               transition-all shadow-sm backdrop-blur-md mb-3"
+                >
+                  <p className="text-sm font-semibold text-blue-300">
+                    {a.cotizacion.reserva.servicio.nombre}
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-1">
+                    Cliente:{" "}
+                    <span className="text-white">
+                      {a.cotizacion.reserva.cliente.usuario.nombre}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-1">
+                    Vehículo:{" "}
+                    <span className="text-white">
+                      {a.cotizacion.reserva.vehiculo.modelo.marca.nombre}{" "}
+                      {a.cotizacion.reserva.vehiculo.modelo.nombre}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/50 mt-1">
+                    Estado actual:{" "}
+                    <span className="text-yellow-300 font-medium">
+                      {a.estado || "pendiente"}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-2 italic">
+                    Tienes un nuevo servicio pendiente.
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

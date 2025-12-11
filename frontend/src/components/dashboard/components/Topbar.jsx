@@ -22,6 +22,38 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const navigate = useNavigate();
+  // === NOTIFICACIONES DE COTIZACIONES ===
+  const [cotizacionesPendientes, setCotizacionesPendientes] = useState([]);
+  const [estadosServicio, setEstadosServicio] = useState([]);
+
+  useEffect(() => {
+    if (!openNotif) return; // solo cargar cuando se abra el dropdown
+
+    const fetchCotizaciones = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch(`${API}/mecanica/cotizaciones`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        const pendientes = data.filter(
+          (c) => c.estado.toLowerCase() === "pendiente"
+        );
+
+        setCotizacionesPendientes(pendientes);
+      } catch (error) {
+        console.error("Error cargando cotizaciones pendientes:", error);
+      }
+    };
+
+    fetchCotizaciones();
+  }, [openNotif]);
 
   // 1. ESTADO PARA EL USUARIO (Con foto)
   const [userData, setUserData] = useState(() => {
@@ -34,49 +66,67 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
     };
   });
 
-  // 2. EFECTO: Sincronizar datos y escuchar cambios
   useEffect(() => {
-    const fetchUserData = async () => {
+    if (!openNotif) return;
+
+    const fetchEstadosServicio = async () => {
       try {
         const token = localStorage.getItem("token");
-        const userStored = JSON.parse(localStorage.getItem("user")) || {};
-        const userId =
-          userStored.id_usuario || localStorage.getItem("id_usuario");
+        if (!token) return;
 
-        if (!userId || !token) return;
-
-        const res = await fetch(`${API}/mecanica/users/${userId}`, {
+        const res = await fetch(`${API}/mecanica/asignaciones-cliente`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          setUserData({
-            nombre: data.nombre,
-            correo: data.correo,
-            rol: data.rol,
-            foto: data.foto, // Actualizamos la foto desde la BD
-          });
+        if (!res.ok) return;
 
-          // Guardamos en local para persistencia
-          localStorage.setItem("user", JSON.stringify(data));
-        }
+        const data = await res.json();
+        setEstadosServicio(data);
       } catch (error) {
-        console.error("Error cargando perfil en Topbar:", error);
+        console.error("Error cargando estados del servicio:", error);
       }
     };
 
-    fetchUserData();
+    fetchEstadosServicio();
+  }, [openNotif]);
 
-    // Escuchar evento personalizado "storage" para actualizar al instante
-    // cuando cambies la foto en Configuración sin recargar
-    const handleStorageChange = () => {
-      const stored = JSON.parse(localStorage.getItem("user")) || {};
-      setUserData((prev) => ({ ...prev, ...stored }));
+  // 2. EFECTO: Sincronizar datos y escuchar cambios
+  // === CARGAR NOTIFICACIONES APENAS ENTRE EL USUARIO ===
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const fetchAllNotifications = async () => {
+      try {
+        // COTIZACIONES
+        const resCot = await fetch(`${API}/mecanica/cotizaciones`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (resCot.ok) {
+          const data = await resCot.json();
+          const pendientes = data.filter(
+            (c) => c.estado.toLowerCase() === "pendiente"
+          );
+          setCotizacionesPendientes(pendientes);
+        }
+
+        // ESTADOS DE SERVICIO
+        const resServ = await fetch(`${API}/mecanica/asignaciones-cliente`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (resServ.ok) {
+          const data2 = await resServ.json();
+          setEstadosServicio(data2);
+        }
+      } catch (error) {
+        console.error("Error cargando notificaciones iniciales:", error);
+      }
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    // Ejecutar carga inicial
+    fetchAllNotifications();
   }, []);
 
   // ... (Chats y funciones auxiliares siguen igual) ...
@@ -145,16 +195,10 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
 
         <div className="flex items-center gap-3 ml-auto">
           {/* Chat y Notificaciones (Sin cambios) */}
-          <button
-            onClick={() => {
-              closeAll();
-              setOpenChat(true);
-            }}
-            className="p-2 rounded-xl text-white hover:bg-violet-600/40 relative transition"
-          >
-            <MessageSquareText size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
-          </button>
+          {cotizacionesPendientes.length > 0 && (
+            <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+          )}
+
           <button
             onClick={() => {
               closeAll();
@@ -163,7 +207,11 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
             className="p-2 rounded-xl text-white hover:bg-violet-600/40 relative transition"
           >
             <Bell size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+
+            {(cotizacionesPendientes.length > 0 ||
+              estadosServicio.length > 0) && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+            )}
           </button>
 
           {/* === ICONO DE PERFIL EN EL HEADER === */}
@@ -254,7 +302,128 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
         </div>
       )}
 
-      {/* ... (Notificaciones) ... */}
+      {/* === DROPDOWN DE NOTIFICACIONES === */}
+      {openNotif && (
+        <div
+          className="fixed right-4 top-20 z-50 w-80 rounded-2xl 
+                  bg-gradient-to-br from-[#1d1a38] to-[#14122b]
+                  border border-white/10 p-4 text-white 
+                  shadow-[0_8px_25px_rgba(0,0,0,0.35)]
+                  animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          {/* HEADER */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold tracking-wide">
+              Notificaciones
+            </h3>
+            <button
+              onClick={() => setOpenNotif(false)}
+              className="hover:bg-white/10 p-1.5 rounded-lg transition"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* CONTENIDO */}
+          {cotizacionesPendientes.length === 0 ? (
+            <div className="py-6 flex flex-col items-center">
+              <Bell size={32} className="text-white/40 mb-2" />
+              <p className="text-white/60 text-sm text-center">
+                No tienes notificaciones
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
+              {cotizacionesPendientes.map((c) => (
+                <div
+                  key={c.id_cotizacion}
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/cliente/cotizaciones/${c.id_cotizacion}`
+                    )
+                  }
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 cursor-pointer
+                       hover:bg-violet-600/20 hover:border-violet-500/40 
+                       active:scale-[0.98] transition-all shadow-sm
+                       backdrop-blur-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-violet-300">
+                      Cotización #{c.id_cotizacion}
+                    </p>
+
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                  </div>
+
+                  <p className="text-xs text-white/50 mt-1">
+                    Estado:{" "}
+                    <span className="text-yellow-400 font-medium">
+                      Pendiente
+                    </span>
+                  </p>
+
+                  {/* TEXTO NUEVO */}
+                  <p className="text-xs text-white/60 mt-2 italic">
+                    Confirma o rechaza tu cotización desde aquí.
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* === ESTADOS DE SERVICIO === */}
+          {estadosServicio.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm text-white/50 mb-2">
+                Actualizaciones de tu servicio
+              </p>
+
+              {estadosServicio.map((s) => (
+                <div
+                  key={s.id_asignacion}
+                  onClick={() =>
+                    navigate(`/dashboard/cliente/servicio/${s.id_asignacion}`)
+                  }
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 cursor-pointer
+                   hover:bg-blue-600/20 hover:border-blue-500/40 
+                   active:scale-[0.98] transition-all shadow-sm
+                   backdrop-blur-md mb-3"
+                >
+                  <p className="text-sm font-semibold text-blue-300">
+                    {s.cotizacion.reserva.servicio.nombre}
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-1">
+                    Vehículo:{" "}
+                    <span className="text-white">
+                      {s.cotizacion.reserva.vehiculo.modelo.marca.nombre}{" "}
+                      {s.cotizacion.reserva.vehiculo.modelo.nombre}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-1">
+                    Mecánico asignado:{" "}
+                    <span className="text-white">
+                      {s.mecanico.usuario.nombre}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/50 mt-1">
+                    Estado actual:{" "}
+                    <span className="text-blue-400 font-medium">
+                      {s.estado || "Sin actualizar"}
+                    </span>
+                  </p>
+
+                  <p className="text-xs text-white/60 mt-2 italic">
+                    Recibirás nuevas actualizaciones del servicio.
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
