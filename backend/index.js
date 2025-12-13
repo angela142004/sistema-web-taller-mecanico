@@ -20,6 +20,7 @@ import modelosRoutes from "./src/routes/modelos.routes.js";
 import serviciosRoutes from "./src/routes/servicios.routes.js";
 import reservasRoutes from "./src/routes/reservas.routes.js";
 import { getServicios } from "./src/controllers/servicios.controller.js";
+import { config } from "./src/config/env.js";
 
 import cotizacionesRoutes from "./src/routes/cotizacion.routes.js";
 import cotizacionClienteRoutes from "./src/routes/cotizacion.cliente.routes.js";
@@ -45,7 +46,7 @@ const __dirname = path.dirname(__filename);
 // 🌐 CORS CONFIG
 // ===============================
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  origin: config.corsOrigin,
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,

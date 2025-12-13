@@ -96,7 +96,7 @@ export const registerUser = async (req, res) => {
     }
 
     // 6. ENVIAR CORREO
-    const urlConfirmacion = `http://localhost:5173/confirmar/${tokenConfirmacion}`;
+    const urlConfirmacion = `${config.frontendUrl}/confirmar/${tokenConfirmacion}`;
 
     await transporter.sendMail({
       from: '"Sistema Taller" <tucorreo@gmail.com>', // Asegúrate que esto coincida con mailer.js
@@ -554,11 +554,9 @@ export const consultarDNI = async (req, res) => {
 
     if (!response.ok) {
       console.error("Error ApiMigo:", response.status);
-      return res
-        .status(404)
-        .json({
-          message: "Error al consultar API externa o DNI no encontrado",
-        });
+      return res.status(404).json({
+        message: "Error al consultar API externa o DNI no encontrado",
+      });
     }
 
     const data = await response.json();
