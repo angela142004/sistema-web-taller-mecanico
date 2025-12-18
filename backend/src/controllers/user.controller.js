@@ -25,28 +25,21 @@ export const registerUser = async (req, res) => {
       fechaIngreso,
     } = req.body;
 
-    // 1. Validaciones básicas
+    const isProduction = process.env.NODE_ENV === "production";
+
     if (!dni || !nombre || !correo || !contraseña) {
-      return res
-        .status(400)
-        .json({ message: "DNI, Nombre, Correo y Contraseña son obligatorios" });
+      return res.status(400).json({
+        message: "DNI, Nombre, Correo y Contraseña son obligatorios",
+      });
     }
 
     if (dni.length !== 8) {
       return res.status(400).json({ message: "El DNI debe tener 8 dígitos" });
     }
 
-    if (!correo.endsWith("@gmail.com")) {
-      return res
-        .status(400)
-        .json({ message: "Solo se permiten correos de Gmail (@gmail.com)" });
-    }
-
-    // 2. Verificar duplicados (DNI o Correo)
-    // CORRECCIÓN: Ahora validamos por DNI, no por Nombre
     const existingUser = await prisma.usuarios.findFirst({
       where: {
-        OR: [{ correo: correo }, { dni: dni }],
+        OR: [{ correo }, { dni }],
       },
     });
 
@@ -56,13 +49,11 @@ export const registerUser = async (req, res) => {
         .json({ message: "El DNI o el Correo ya están registrados" });
     }
 
-    // 3. Preparar datos
     const rolValido = ["cliente", "mecanico", "admin"];
     const rolFinal = rolValido.includes(rol) ? rol : "cliente";
     const hashedPassword = await bcrypt.hash(contraseña, 10);
     const tokenConfirmacion = crypto.randomBytes(20).toString("hex");
 
-    // 4. Crear usuario
     const newUser = await prisma.usuarios.create({
       data: {
         dni,
@@ -70,12 +61,11 @@ export const registerUser = async (req, res) => {
         correo,
         contraseña: hashedPassword,
         rol: rolFinal,
-        confirmado: false,
-        token: tokenConfirmacion,
+        confirmado: isProduction ? true : false,
+        token: isProduction ? null : tokenConfirmacion,
       },
     });
 
-    // 5. Crear roles específicos
     if (rolFinal === "cliente") {
       await prisma.clientes.create({
         data: {
@@ -84,7 +74,9 @@ export const registerUser = async (req, res) => {
           direccion: direccion || "",
         },
       });
-    } else if (rolFinal === "mecanico") {
+    }
+
+    if (rolFinal === "mecanico") {
       await prisma.mecanicos.create({
         data: {
           id_usuario: newUser.id_usuario,
@@ -95,36 +87,29 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // 6. ENVIAR CORREO
-    const urlConfirmacion = `${config.frontendUrl}/confirmar/${tokenConfirmacion}`;
+    // SOLO EN LOCAL
+    if (!isProduction) {
+      const urlConfirmacion = `${config.frontendUrl}/confirmar/${tokenConfirmacion}`;
 
-    await transporter.sendMail({
-      from: '"Sistema Taller" <tucorreo@gmail.com>', // Asegúrate que esto coincida con mailer.js
-      to: correo,
-      subject: "Confirma tu cuenta - Taller Mecánico",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <h2 style="color: #4F46E5; text-align: center;">Bienvenido, ${nombre}</h2>
-          <p style="text-align: center;">Tu DNI registrado es: <b>${dni}</b></p>
-          <p>Gracias por registrarte. Para activar tu cuenta y poder iniciar sesión, por favor confirma tu correo electrónico:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${urlConfirmacion}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmar mi Cuenta</a>
-          </div>
-          <p style="color: #666; font-size: 12px; text-align: center;">Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
-        </div>
-      `,
-    });
+      await transporter.sendMail({
+        from: '"Sistema Taller" <tucorreo@gmail.com>',
+        to: correo,
+        subject: "Confirma tu cuenta",
+        html: `<a href="${urlConfirmacion}">Confirmar cuenta</a>`,
+      });
+    }
 
     res.status(201).json({
-      message: "Usuario registrado. Revisa tu Gmail para confirmar la cuenta.",
+      message: isProduction
+        ? "Usuario registrado correctamente."
+        : "Usuario registrado. Revisa tu Gmail para confirmar la cuenta.",
     });
   } catch (error) {
     console.error("Error registro:", error);
-    res
-      .status(500)
-      .json({ message: "Error al registrar usuario", error: error.message });
+    res.status(500).json({ message: "Error al registrar usuario" });
   }
 };
+
 /**
  * @desc Iniciar sesión
 /**
