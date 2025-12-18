@@ -214,7 +214,7 @@ export default function App() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(`${API_BASE}/users/rol/${selectedTab}`, {
+      const res = await fetch(`${API_BASE}/mecanica/users/rol/${selectedTab}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -293,7 +293,7 @@ export default function App() {
           fechaIngreso: data.fechaIngreso || null,
         };
 
-        const res = await fetch(`${API_BASE}/register`, {
+        const res = await fetch(`${API_BASE}/mecanica/register`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -339,7 +339,7 @@ export default function App() {
           updatePayload.fecha_ingreso = data.fechaIngreso; // backend espera fecha_ingreso
       }
 
-      const url = `${API_BASE}/users/${data.id_usuario}`;
+      const url = `${API_BASE}/mecanica/users/${data.id_usuario}`;
       const res = await fetch(url, {
         method: "PUT",
         headers: {
@@ -366,7 +366,7 @@ export default function App() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(`${API_BASE}/users/${user.id_usuario}`, {
+      const res = await fetch(`${API_BASE}/mecanica/users/${user.id_usuario}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
