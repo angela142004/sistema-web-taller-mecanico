@@ -495,9 +495,11 @@ export const confirmAccount = async (req, res) => {
 export const consultarDNI = async (req, res) => {
   const { dni } = req.params;
 
-  // DNI de prueba
+  // DNI SIMULADO (para pruebas)
   if (dni === "12345678") {
-    return res.json({ nombreCompleto: "Juan Perez Simulador" });
+    return res.status(200).json({
+      nombreCompleto: "Juan Perez Simulador",
+    });
   }
 
   try {
@@ -505,20 +507,29 @@ export const consultarDNI = async (req, res) => {
       headers: {
         Authorization: `Bearer ${process.env.API_MIGO_KEY}`,
       },
+      timeout: 5000,
     });
 
-    return res.json(response.data);
+    return res.status(200).json(response.data);
   } catch (error) {
-    if (error.response) {
-      console.error("Error ApiMigo:", error.response.status);
+    console.error("❌ Error ApiMigo:", error.message);
 
-      // 🔥 DEVUELVE EL ERROR REAL
-      return res.status(error.response.status).json({
-        message: "Error al consultar DNI",
-        detalle: error.response.data,
+    // ⚠️ ApiMigo respondió con error (403, 401, etc)
+    if (error.response) {
+      return res.status(503).json({
+        message: "Servicio de DNI no disponible",
+        detalle: error.response.data || "Error externo",
       });
     }
 
+    // ⚠️ Error de red / timeout
+    if (error.request) {
+      return res.status(504).json({
+        message: "No se pudo conectar con el servicio de DNI",
+      });
+    }
+
+    // ⚠️ Error interno real
     return res.status(500).json({
       message: "Error interno del servidor",
     });

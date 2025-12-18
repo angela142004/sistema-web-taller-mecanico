@@ -76,10 +76,13 @@ const Register = () => {
         setTimeout(() => setSuccess(""), 3000);
       }
     } catch (err) {
-      setError("❌ " + err.message);
-      setFormData((prev) => ({ ...prev, nombre: "" })); // Limpiamos si falla
-    } finally {
-      setLoadingDni(false);
+      setFormData((prev) => ({ ...prev, nombre: "" }));
+
+      if (err.message.includes("503")) {
+        setError("⚠️ El servicio de DNI no está disponible, intenta más tarde");
+      } else {
+        setError("❌ No se pudo validar el DNI");
+      }
     }
   };
 
