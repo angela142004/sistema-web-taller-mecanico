@@ -495,57 +495,32 @@ export const confirmAccount = async (req, res) => {
 export const consultarDNI = async (req, res) => {
   const { dni } = req.params;
 
-  if (!dni || dni.length !== 8) {
-    return res.status(400).json({ message: "El DNI debe tener 8 dígitos" });
-  }
-
-  // --- MODO SIMULACIÓN (Siempre activo para pruebas) ---
+  // DNI de prueba
   if (dni === "12345678") {
     return res.json({ nombreCompleto: "Juan Perez Simulador" });
   }
 
   try {
-    // ⚠️ TU TOKEN DE APIMIGO
-    const token =
-      "JzlfyCCBbygPEXNwGH75I3u0ldHVmNhkWJvuRaUZvo0ebz4iWmCMEipXMTYt";
-
-    // URL PARA POST (Según documentación estándar)
-    const url = "https://api.migo.pe/api/v1/dni";
-
-    const response = await fetch(url, {
-      method: "POST", // <--- CAMBIO IMPORTANTE: Ahora es POST
+    const response = await axios.get(`https://api.apimigo.com/dni/${dni}`, {
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        Authorization: `Bearer ${process.env.API_MIGO_KEY}`,
       },
-      body: JSON.stringify({
-        token: token,
-        dni: dni,
-      }),
     });
 
-    if (!response.ok) {
-      console.error("Error ApiMigo:", response.status);
-      return res.status(404).json({
-        message: "Error al consultar API externa o DNI no encontrado",
-      });
-    }
-
-    const data = await response.json();
-
-    // Verificamos si trajo datos exitosos
-    // ApiMigo suele devolver { success: true, nombre: "...", ... }
-    if (data.success || data.nombre) {
-      return res.json({
-        nombreCompleto: `${data.nombre} ${data.apellidoPaterno || ""} ${
-          data.apellidoMaterno || ""
-        }`.trim(),
-      });
-    } else {
-      return res.status(404).json({ message: "DNI no encontrado" });
-    }
+    return res.json(response.data);
   } catch (error) {
-    console.error("Error Servidor DNI:", error);
-    res.status(500).json({ message: "Error interno al consultar DNI" });
+    if (error.response) {
+      console.error("Error ApiMigo:", error.response.status);
+
+      // 🔥 DEVUELVE EL ERROR REAL
+      return res.status(error.response.status).json({
+        message: "Error al consultar DNI",
+        detalle: error.response.data,
+      });
+    }
+
+    return res.status(500).json({
+      message: "Error interno del servidor",
+    });
   }
 };
