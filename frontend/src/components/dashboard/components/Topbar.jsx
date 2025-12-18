@@ -60,35 +60,44 @@ export default function Topbar({ onOpenSidebar = () => {} }) {
     const stored = JSON.parse(localStorage.getItem("user")) || {};
     return {
       nombre: stored.nombre || "Usuario",
-      correo: stored.correo || "Cargando...",
+      correo: stored.correo || "",
       rol: stored.rol || "cliente",
-      foto: stored.foto || null, // Cargamos la foto del storage si existe
+      foto: stored.foto || null,
     };
   });
 
   useEffect(() => {
-    if (!openNotif) return;
-
-    const fetchEstadosServicio = async () => {
+    const fetchUserData = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return;
+        const userStored = JSON.parse(localStorage.getItem("user")) || {};
+        const userId =
+          userStored.id_usuario || localStorage.getItem("id_usuario");
 
-        const res = await fetch(`${API}/mecanica/asignaciones-cliente`, {
+        if (!userId || !token) return;
+
+        const res = await fetch(`${API}/mecanica/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.ok) return;
+        if (res.ok) {
+          const data = await res.json();
+          setUserData({
+            nombre: data.nombre,
+            correo: data.correo,
+            rol: data.rol,
+            foto: data.foto,
+          });
 
-        const data = await res.json();
-        setEstadosServicio(data);
+          localStorage.setItem("user", JSON.stringify(data));
+        }
       } catch (error) {
-        console.error("Error cargando estados del servicio:", error);
+        console.error("Error cargando perfil cliente:", error);
       }
     };
 
-    fetchEstadosServicio();
-  }, [openNotif]);
+    fetchUserData();
+  }, []);
 
   // 2. EFECTO: Sincronizar datos y escuchar cambios
   // === CARGAR NOTIFICACIONES APENAS ENTRE EL USUARIO ===
