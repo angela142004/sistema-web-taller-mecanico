@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 // URL de la API (Backend)
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 const Register = () => {
   const navigate = useNavigate();

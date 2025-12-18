@@ -33,7 +33,7 @@ export default function ServicioAsignadoMecanico() {
 
   const idUsuario = Number(localStorage.getItem("id_usuario"));
   const token = localStorage.getItem("token") || "";
-  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const API = import.meta.env.VITE_API_URL;
 
   // ========================================================
   // 📌 Cargar asignaciones reales

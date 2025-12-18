@@ -13,6 +13,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+const API = import.meta.env.VITE_API_URL;
 export default function DashboardInicio() {
   const usuario = localStorage.getItem("nombre") || "Cliente";
   const token = localStorage.getItem("token");
@@ -31,7 +32,7 @@ export default function DashboardInicio() {
   });
   const fetchVehiculos = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/vehiculos", {
+      const res = await fetch(`${API}/mecanica/vehiculos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -43,12 +44,9 @@ export default function DashboardInicio() {
 
   const fetchReservas = async () => {
     try {
-      const res = await fetch(
-        "http://localhost:4001/mecanica/reservas/cliente",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${API}/mecanica/reservas/cliente`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (Array.isArray(data)) setReservas(data.length);
     } catch (error) {
@@ -58,7 +56,7 @@ export default function DashboardInicio() {
 
   const fetchAsignacionesFinalizadas = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/asignaciones", {
+      const res = await fetch(`${API}/mecanica/asignaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -86,12 +84,9 @@ export default function DashboardInicio() {
 
   const fetchCotizaciones = async () => {
     try {
-      const res = await fetch(
-        "http://localhost:4001/mecanica/cotizaciones-cliente",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${API}/mecanica/cotizaciones-cliente`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (Array.isArray(data)) setCotizaciones(data.length);
     } catch (error) {
@@ -100,7 +95,7 @@ export default function DashboardInicio() {
   };
   const fetchEstadoServiciosCliente = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/asignaciones", {
+      const res = await fetch(`${API}/mecanica/asignaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -150,7 +145,7 @@ export default function DashboardInicio() {
 
     const fetchReservasPendientes = async () => {
       try {
-        const res = await fetch("http://localhost:4001/mecanica/reservas", {
+        const res = await fetch(`${API}/mecanica/reservas`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

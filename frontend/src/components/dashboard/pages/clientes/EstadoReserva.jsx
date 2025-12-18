@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 export default function EstadoReserva() {
-  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const API = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("token") || "";
 
   const [reservas, setReservas] = useState([]);

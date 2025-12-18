@@ -25,6 +25,8 @@ import {
   X,
 } from "lucide-react";
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function AdminInicio() {
   const adminName = localStorage.getItem("nombre") || "Administrador";
   const token = localStorage.getItem("token");
@@ -56,7 +58,7 @@ export default function AdminInicio() {
       // -----------------------------------
       // 1️⃣ CLIENTES
       // -----------------------------------
-      const resClientes = await fetch("http://localhost:4001/mecanica/users", {
+      const resClientes = await fetch(`${API}/mecanica/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -69,12 +71,9 @@ export default function AdminInicio() {
       // -----------------------------------
       // 2️⃣ RESERVAS (todas)
       // -----------------------------------
-      const resReservas = await fetch(
-        "http://localhost:4001/mecanica/reservas",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const resReservas = await fetch(`${API}/mecanica/reservas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const dataReservas = await resReservas.json();
       setReservas(Array.isArray(dataReservas) ? dataReservas.length : 0);
@@ -82,10 +81,9 @@ export default function AdminInicio() {
       // -----------------------------------
       // 3️⃣ ASIGNACIONES EN PROCESO
       // -----------------------------------
-      const resAsignaciones = await fetch(
-        "http://localhost:4001/mecanica/asignaciones",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const resAsignaciones = await fetch(`${API}/mecanica/asignaciones`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const dataAsignaciones = await resAsignaciones.json();
 
@@ -98,7 +96,7 @@ export default function AdminInicio() {
       // -----------------------------------
       // 4️⃣ MECÁNICOS
       // -----------------------------------
-      const resMecanicos = await fetch("http://localhost:4001/mecanica/users", {
+      const resMecanicos = await fetch(`${API}/mecanica/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -191,12 +189,9 @@ export default function AdminInicio() {
   // Cargar historial desde backend y mapear al formato que usa la UI
   const cargarHistorial = async () => {
     try {
-      const res = await fetch(
-        "http://localhost:4001/mecanica/cotizaciones/historial",
-        {
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        }
-      );
+      const res = await fetch(`${API}/mecanica/cotizaciones/historial`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
 
       if (!res.ok) {
         // intentar leer body de error para debugging
@@ -261,17 +256,14 @@ export default function AdminInicio() {
     };
 
     try {
-      const res = await fetch(
-        "http://localhost:4001/mecanica/cotizaciones/historial",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${API}/mecanica/cotizaciones/historial`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -293,7 +285,7 @@ export default function AdminInicio() {
 
     try {
       const res = await fetch(
-        `http://localhost:4001/mecanica/cotizaciones/historial-semanas/${idHistorial}`,
+        `${API}/mecanica/cotizaciones/historial-semanas/${idHistorial}`,
         {
           method: "DELETE",
           headers: {
@@ -494,7 +486,7 @@ export default function AdminInicio() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:4001/mecanica/reservas", {
+      const res = await fetch(`${API}/mecanica/reservas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -571,7 +563,7 @@ export default function AdminInicio() {
   // ------------------
   const fetchCostos = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/cotizaciones", {
+      const res = await fetch(`${API}/mecanica/cotizaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -646,7 +638,7 @@ export default function AdminInicio() {
   // Función para obtener rendimiento desde el backend (robusta contra formatos)
   const fetchRendimientoSemanal = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/cotizaciones", {
+      const res = await fetch(`${API}/mecanica/cotizaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -704,7 +696,7 @@ export default function AdminInicio() {
   // --- REPUESTOS: cargar top y alertas desde backend ---
   const fetchRepuestos = async () => {
     try {
-      const res = await fetch("http://localhost:4001/mecanica/repuestos", {
+      const res = await fetch(`${API}/mecanica/repuestos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Error cargando repuestos");

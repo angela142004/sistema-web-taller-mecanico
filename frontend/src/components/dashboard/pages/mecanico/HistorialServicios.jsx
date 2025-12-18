@@ -11,7 +11,7 @@ import {
   DollarSign,
 } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 export default function HistorialServicios() {
   const [serviciosFinalizados, setServiciosFinalizados] = useState([]);

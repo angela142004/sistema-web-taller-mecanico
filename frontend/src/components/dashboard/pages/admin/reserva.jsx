@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, ChevronDown } from "lucide-react";
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function AdminReservas() {
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
   const [reservas, setReservas] = useState([]);
@@ -35,7 +37,7 @@ export default function AdminReservas() {
   useEffect(() => {
     const cargarReservas = async () => {
       try {
-        const res = await fetch("http://localhost:4001/mecanica/reservas");
+        const res = await fetch(`${API}/mecanica/reservas`);
         const data = await res.json();
 
         const adaptadas = data.map((r) => {
@@ -93,14 +95,11 @@ export default function AdminReservas() {
   // ===============================
   const aceptarReserva = async (idReserva) => {
     try {
-      const res = await fetch(
-        `http://localhost:4001/mecanica/reservas/estado/${idReserva}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ estado: "CONFIRMADA" }),
-        }
-      );
+      const res = await fetch(`${API}/mecanica/reservas/estado/${idReserva}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "CONFIRMADA" }),
+      });
 
       if (!res.ok) {
         throw new Error("Error en el servidor");
@@ -127,14 +126,11 @@ export default function AdminReservas() {
   // ===============================
   const cancelarReserva = async (idReserva) => {
     try {
-      const res = await fetch(
-        `http://localhost:4001/mecanica/reservas/estado/${idReserva}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ estado: "CANCELADA" }),
-        }
-      );
+      const res = await fetch(`${API}/mecanica/reservas/estado/${idReserva}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "CANCELADA" }),
+      });
 
       if (!res.ok) {
         throw new Error("Error en el servidor");

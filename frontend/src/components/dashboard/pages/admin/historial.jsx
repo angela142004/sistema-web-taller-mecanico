@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, History, Car, User, Wrench, ChevronDown } from "lucide-react";
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function HistorialServiciosPage() {
   const [historial, setHistorial] = useState([]);
   const [filtroBusqueda, setFiltroBusqueda] = useState("");
@@ -22,9 +24,9 @@ export default function HistorialServiciosPage() {
       let url = "";
 
       if (busqueda.trim() === "") {
-        url = "http://localhost:4001/mecanica/historial/admin";
+        url = `${API}/mecanica/historial/admin`;
       } else {
-        url = `http://localhost:4001/mecanica/historial/buscar?${tipoFiltro}=${encodeURIComponent(
+        url = `${API}/mecanica/historial/buscar?${tipoFiltro}=${encodeURIComponent(
           busqueda
         )}`;
       }

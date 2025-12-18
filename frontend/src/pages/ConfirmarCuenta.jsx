@@ -9,7 +9,7 @@ export default function ConfirmarCuenta() {
   useEffect(() => {
     const confirmar = async () => {
       try {
-        const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const API = import.meta.env.VITE_API_URL;
         const res = await fetch(`${API}/mecanica/confirmar/${token}`);
         const data = await res.json();
 

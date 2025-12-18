@@ -13,7 +13,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:4001/mecanica";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const ActionNotification = ({ message, type, onClose }) => {
   if (!message) return null;

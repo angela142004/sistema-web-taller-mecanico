@@ -9,7 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 export default function AdminServicio() {
   const [servicios, setServicios] = useState([]);

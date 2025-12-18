@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Calendar, Wrench } from "lucide-react";
+const API = import.meta.env.VITE_API_URL;
 
 export default function AsignarMecanico() {
   const [reservas, setReservas] = useState([]);
@@ -26,7 +27,8 @@ export default function AsignarMecanico() {
   useEffect(() => {
     const fetchCotizaciones = async () => {
       try {
-        const res = await fetch("http://localhost:4001/mecanica/cotizaciones");
+        const res = await fetch(`${API}/mecanica/cotizaciones`);
+
         const data = await res.json();
 
         const aprobadas = data.filter((c) => c.estado === "CONFIRMADO");
@@ -72,7 +74,8 @@ export default function AsignarMecanico() {
   useEffect(() => {
     const fetchMecanicos = async () => {
       try {
-        const res = await fetch("http://localhost:4001/mecanica/mecanicos");
+        const res = await fetch(`${API}/mecanica/mecanicos`);
+
         const data = await res.json();
 
         const mecanicosFormateados = data.map((m) => ({
@@ -117,11 +120,13 @@ export default function AsignarMecanico() {
     const id_mecanico_anterior = reservaSeleccionada.id_mecanico_asignado;
 
     try {
-      let url = "http://localhost:4001/mecanica/asignaciones";
+      let url = `${API}/mecanica/asignaciones`;
+
       let method = "POST";
 
       if (reservaSeleccionada.id_asignacion) {
-        url = `http://localhost:4001/mecanica/asignaciones/${reservaSeleccionada.id_asignacion}`;
+        url = `${API}/mecanica/asignaciones/${reservaSeleccionada.id_asignacion}`;
+
         method = "PUT";
       }
 

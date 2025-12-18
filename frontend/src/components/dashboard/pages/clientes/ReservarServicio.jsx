@@ -311,7 +311,7 @@ function Combo({
 }
 
 export default function ReservarServicio() {
-  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const API = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("token") || "";
 
   const [marca, setMarca] = useState("");

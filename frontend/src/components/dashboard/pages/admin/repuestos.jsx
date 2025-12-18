@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 // URL Base del Backend
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 export default function AdminInventario() {
   // === ESTADOS ===

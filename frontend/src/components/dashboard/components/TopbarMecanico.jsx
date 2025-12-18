@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell, Menu, X, User, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 export default function Topbar({ onOpenSidebar = () => {} }) {
   const [openProfile, setOpenProfile] = useState(false);

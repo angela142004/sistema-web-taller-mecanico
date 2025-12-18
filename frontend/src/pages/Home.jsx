@@ -40,7 +40,7 @@ const Home = () => {
     setError("");
 
     try {
-      const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      const API = import.meta.env.VITE_API_URL;
       const response = await fetch(`${API}/mecanica/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

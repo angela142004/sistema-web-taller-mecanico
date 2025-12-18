@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default function CotizacionCliente() {
-  const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+  const API = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("token") || "";
 
   const [cotizaciones, setCotizaciones] = useState([]);

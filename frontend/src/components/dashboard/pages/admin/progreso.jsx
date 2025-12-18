@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Wrench, Calendar, Info } from "lucide-react";
-
+const API = import.meta.env.VITE_API_URL;
 export default function AdminProgresoVehiculos() {
   const [data, setData] = useState([]);
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
@@ -17,9 +17,7 @@ export default function AdminProgresoVehiculos() {
   useEffect(() => {
     const cargarAsignaciones = async () => {
       try {
-        const response = await fetch(
-          "http://localhost:4001/mecanica/asignaciones"
-        );
+        const response = await fetch(`${API}/mecanica/asignaciones`);
         const json = await response.json();
 
         const adaptado = json.map((a, index) => {

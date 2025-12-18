@@ -9,6 +9,7 @@ import {
   ChevronUp,
   XCircle as X,
 } from "lucide-react";
+const API = import.meta.env.VITE_API_URL;
 
 export default function CotizacionesAdmin() {
   const [reservas, setReservas] = useState([]);
@@ -32,9 +33,7 @@ export default function CotizacionesAdmin() {
     try {
       const token = localStorage.getItem("token");
 
-      const resp = await fetch(
-        "http://localhost:4001/mecanica/reservas/confirmadas"
-      );
+      const resp = await fetch(`${API}/mecanica/reservas/confirmadas`);
 
       const data = await resp.json();
 
@@ -165,7 +164,7 @@ export default function CotizacionesAdmin() {
     }
 
     try {
-      const resp = await fetch("http://localhost:4001/mecanica/cotizaciones", {
+      const resp = await fetch(`${API}/mecanica/cotizaciones`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

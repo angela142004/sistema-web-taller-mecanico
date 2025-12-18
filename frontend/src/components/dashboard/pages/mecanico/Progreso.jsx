@@ -9,7 +9,7 @@ import {
   Loader,
 } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_URL;
 
 const ESTADOS_SERVICIO = {
   pendiente: { label: "Pendiente", icon: Clock },
