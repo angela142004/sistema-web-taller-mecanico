@@ -25,8 +25,6 @@ export const registerUser = async (req, res) => {
       fechaIngreso,
     } = req.body;
 
-    const isProduction = process.env.NODE_ENV === "production";
-
     if (!dni || !nombre || !correo || !contraseña) {
       return res.status(400).json({
         message: "DNI, Nombre, Correo y Contraseña son obligatorios",
@@ -37,22 +35,26 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "El DNI debe tener 8 dígitos" });
     }
 
-    const existingUser = await prisma.usuarios.findFirst({
-      where: {
-        OR: [{ correo }, { dni }],
-      },
-    });
-
-    if (existingUser) {
+    if (!correo.endsWith("@gmail.com")) {
       return res
         .status(400)
-        .json({ message: "El DNI o el Correo ya están registrados" });
+        .json({ message: "Solo se permiten correos Gmail" });
     }
 
-    const rolValido = ["cliente", "mecanico", "admin"];
-    const rolFinal = rolValido.includes(rol) ? rol : "cliente";
+    const exists = await prisma.usuarios.findFirst({
+      where: { OR: [{ dni }, { correo }] },
+    });
+
+    if (exists) {
+      return res.status(400).json({ message: "DNI o correo ya registrados" });
+    }
+
     const hashedPassword = await bcrypt.hash(contraseña, 10);
-    const tokenConfirmacion = crypto.randomBytes(20).toString("hex");
+    const rolFinal = ["cliente", "mecanico", "admin"].includes(rol)
+      ? rol
+      : "cliente";
+
+    const autoConfirm = true; // 🔥 DESACTIVA CONFIRMACIÓN POR CORREO
 
     const newUser = await prisma.usuarios.create({
       data: {
@@ -61,8 +63,8 @@ export const registerUser = async (req, res) => {
         correo,
         contraseña: hashedPassword,
         rol: rolFinal,
-        confirmado: isProduction ? true : false,
-        token: isProduction ? null : tokenConfirmacion,
+        confirmado: autoConfirm,
+        token: autoConfirm ? null : crypto.randomBytes(20).toString("hex"),
       },
     });
 
@@ -87,22 +89,8 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // SOLO EN LOCAL
-    if (!isProduction) {
-      const urlConfirmacion = `${config.frontendUrl}/confirmar/${tokenConfirmacion}`;
-
-      await transporter.sendMail({
-        from: '"Sistema Taller" <tucorreo@gmail.com>',
-        to: correo,
-        subject: "Confirma tu cuenta",
-        html: `<a href="${urlConfirmacion}">Confirmar cuenta</a>`,
-      });
-    }
-
-    res.status(201).json({
-      message: isProduction
-        ? "Usuario registrado correctamente."
-        : "Usuario registrado. Revisa tu Gmail para confirmar la cuenta.",
+    return res.status(201).json({
+      message: "Usuario registrado correctamente",
     });
   } catch (error) {
     console.error("Error registro:", error);
@@ -120,23 +108,22 @@ export const loginUser = async (req, res) => {
     const { correo, contraseña } = req.body;
 
     const user = await prisma.usuarios.findUnique({ where: { correo } });
-    if (!user)
+    if (!user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
-
-    // 3. VALIDAR SI ESTÁ CONFIRMADO
-    if (!user.confirmado) {
-      return res.status(403).json({
-        message: "Tu cuenta no ha sido confirmada. Revisa tu correo.",
-      });
     }
 
-    const isPasswordValid = await bcrypt.compare(contraseña, user.contraseña);
-    if (!isPasswordValid)
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+    const validPassword = await bcrypt.compare(contraseña, user.contraseña);
 
-    // ... (El resto de tu lógica de token y response sigue igual) ...
+    if (!validPassword) {
+      return res.status(401).json({ message: "Contraseña incorrecta" });
+    }
+
     const token = jwt.sign(
-      { id_usuario: user.id_usuario, correo: user.correo, rol: user.rol },
+      {
+        id_usuario: user.id_usuario,
+        correo: user.correo,
+        rol: user.rol,
+      },
       config.jwtSecret,
       { expiresIn: "24h" }
     );
@@ -147,7 +134,7 @@ export const loginUser = async (req, res) => {
         where: { id_usuario: user.id_usuario },
         select: { id_cliente: true },
       });
-      id_cliente = cliente ? cliente.id_cliente : null;
+      id_cliente = cliente?.id_cliente || null;
     }
 
     res.json({
@@ -163,7 +150,7 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error en login:", error);
+    console.error("Error login:", error);
     res.status(500).json({ message: "Error interno" });
   }
 };
