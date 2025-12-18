@@ -43,15 +43,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ===============================
-// 🌐 CORS CONFIG
+// 🌐 CORS CONFIG (MULTI-ORIGIN)
 // ===============================
-const corsOptions = {
-  origin: config.corsOrigin,
-  methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-};
-app.use(cors(corsOptions));
+const allowedOrigins = config.corsOrigin?.split(",");
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite requests sin origin (Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.error("❌ CORS bloqueado:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // ===============================
 // 📌 MIDDLEWARES
