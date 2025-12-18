@@ -492,46 +492,71 @@ export const confirmAccount = async (req, res) => {
 /**
  * @desc CONSULTAR DNI (Versión ApiMigo - Método POST)
  */
+/**
+ * @desc Consultar DNI (Seguro para Producción)
+ */
 export const consultarDNI = async (req, res) => {
   const { dni } = req.params;
 
-  // DNI SIMULADO (para pruebas)
-  if (dni === "12345678") {
-    return res.status(200).json({
-      nombreCompleto: "Juan Perez Simulador",
+  // Validación básica
+  if (!dni || dni.length !== 8) {
+    return res.status(400).json({
+      message: "El DNI debe tener 8 dígitos",
     });
   }
 
+  // ===============================
+  // 🟢 PRODUCCIÓN → SIMULADO
+  // ===============================
+  if (process.env.NODE_ENV === "production") {
+    return res.status(200).json({
+      nombreCompleto: "Usuario Validado",
+    });
+  }
+
+  // ===============================
+  // 🟡 LOCAL → API REAL
+  // ===============================
   try {
-    const response = await axios.get(`https://api.apimigo.com/dni/${dni}`, {
+    const token = process.env.APIMIGO_TOKEN; // ⬅️ ponlo en .env
+    const url = "https://api.migo.pe/api/v1/dni";
+
+    const response = await fetch(url, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.API_MIGO_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      timeout: 5000,
+      body: JSON.stringify({
+        token,
+        dni,
+      }),
     });
 
-    return res.status(200).json(response.data);
+    if (!response.ok) {
+      console.error("ApiMigo error:", response.status);
+      return res.status(404).json({
+        message: "No se pudo validar el DNI",
+      });
+    }
+
+    const data = await response.json();
+
+    if (!data || !data.nombre) {
+      return res.status(404).json({
+        message: "DNI no encontrado",
+      });
+    }
+
+    return res.status(200).json({
+      nombreCompleto: `${data.nombre} ${data.apellidoPaterno || ""} ${
+        data.apellidoMaterno || ""
+      }`.trim(),
+    });
   } catch (error) {
-    console.error("❌ Error ApiMigo:", error.message);
-
-    // ⚠️ ApiMigo respondió con error (403, 401, etc)
-    if (error.response) {
-      return res.status(503).json({
-        message: "Servicio de DNI no disponible",
-        detalle: error.response.data || "Error externo",
-      });
-    }
-
-    // ⚠️ Error de red / timeout
-    if (error.request) {
-      return res.status(504).json({
-        message: "No se pudo conectar con el servicio de DNI",
-      });
-    }
-
-    // ⚠️ Error interno real
+    console.error("Error DNI:", error);
     return res.status(500).json({
-      message: "Error interno del servidor",
+      message: "Error interno al consultar DNI",
     });
   }
 };
